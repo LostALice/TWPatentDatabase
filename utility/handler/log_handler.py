@@ -11,7 +11,8 @@ class Logger(object):
         filename: str,
         fmt: str = "%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s",
     ) -> None:
-        self.logger = logging.getLogger(filename)
+        logging.FileHandler(filename=filename, mode="w", encoding="utf-8")
+        self.logger = logging.getLogger(__name__)
         self.handler = logging.StreamHandler()
 
         formatter = logging.Formatter(fmt)
