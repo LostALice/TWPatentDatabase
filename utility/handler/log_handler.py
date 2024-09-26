@@ -1,6 +1,7 @@
 # Code by AkinoAlice@TyrantRey
 
-from json import dumps
+from pprint import pformat
+from typing import Any
 import logging
 
 
@@ -11,7 +12,7 @@ class Logger(object):
         filename: str,
         fmt: str = "%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s",
     ) -> None:
-        logging.FileHandler(filename=filename, mode="w", encoding="utf-8")
+        logging.FileHandler(filename=filename, mode="a", encoding="utf-8")
         self.logger = logging.getLogger(__name__)
         self.handler = logging.StreamHandler()
 
@@ -19,37 +20,37 @@ class Logger(object):
         self.handler.setFormatter(formatter)
         self.logger.addHandler(self.handler)
 
-    def debug(self, message: str, format_json: bool = False) -> None:
+    def debug(self, message: Any, format_json: bool = False) -> None:
         if format_json:
-            self.logger.debug(dumps(message, indent=4))
+            self.logger.debug(pformat(message, indent=4))
         else:
             self.logger.debug(message)
 
-    def info(self, message: str, format_json: bool = False) -> None:
+    def info(self, message: Any, format_json: bool = False) -> None:
         if format_json:
-            self.logger.info(dumps(message, indent=4))
+            self.logger.info(pformat(message, indent=4))
         else:
             self.logger.info(message)
 
-    def warning(self, message: str, format_json: bool = False) -> None:
+    def warning(self, message: Any, format_json: bool = False) -> None:
         if format_json:
-            self.logger.warning(dumps(message, indent=4))
+            self.logger.warning(pformat(message, indent=4))
         else:
             self.logger.warning(message)
 
-    def error(self, message: str, format_json: bool = False) -> None:
+    def error(self, message: Any, format_json: bool = False) -> None:
         if format_json:
-            self.logger.error(dumps(message, indent=4))
+            self.logger.error(pformat(message, indent=4))
         else:
             self.logger.error(message)
 
-    def critical(self, message: str, format_json: bool = False) -> None:
+    def critical(self, message: Any, format_json: bool = False) -> None:
         if format_json:
-            self.logger.critical(dumps(message, indent=4))
+            self.logger.critical(pformat(message, indent=4))
         else:
             self.logger.critical(message)
 
-    def log(self, level: str, message: str) -> None:
+    def log(self, level: str, message: Any) -> None:
         if level.capitalize == "DEBUG":
             self.logger.debug(message)
 
@@ -65,18 +66,18 @@ class Logger(object):
         if level.capitalize == "CRITICAL":
             self.logger.critical(message)
 
-    def log_json(self, level: str, message: str) -> None:
+    def log_json(self, level: str, message: Any) -> None:
         if level.capitalize == "DEBUG":
-            self.logger.debug(dumps(message, indent=4))
+            self.logger.debug(pformat(message, indent=4))
 
         if level.capitalize == "INFO":
-            self.logger.info(dumps(message, indent=4))
+            self.logger.info(pformat(message, indent=4))
 
         if level.capitalize == "WARNING":
-            self.logger.warning(dumps(message, indent=4))
+            self.logger.warning(pformat(message, indent=4))
 
         if level.capitalize == "ERROR":
-            self.logger.error(dumps(message, indent=4))
+            self.logger.error(pformat(message, indent=4))
 
         if level.capitalize == "CRITICAL":
-            self.logger.critical(dumps(message, indent=4))
+            self.logger.critical(pformat(message, indent=4))
