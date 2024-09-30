@@ -17,3 +17,5 @@ class PatentInfo(BaseModel):
     IPC: str = ""
     GazetteVolume: str = ""
     KindCodes: str = ""
+    PatentURL: str = ""
+    PatentFilePath: str = ""
