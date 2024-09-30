@@ -29,30 +29,71 @@ class Scraper(object):
         self.driver = webdriver.Edge(options=self.options)
 
         self.logger = Logger("./logging.log")
-        # disable following modules logging
+        # disable following modules logging to warnings
         self.logger.set_module_level("selenium", "WARNING")
         self.logger.set_module_level("urllib3", "WARNING")
 
-    def searching(self, search_string: str) -> list[str]:
+    def search(self, keyword: str) -> tuple[int, int]:
+        self.driver.get("https://gpss2.tipo.gov.tw/gpsskmc/gpssbkm")
+        self.keyword = keyword
+        self.logger.info(f"Searching {self.keyword}", False)
+
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.NAME, "_21_1_T"))
+        )
+        search_bar = self.driver.find_element(By.NAME, "_21_1_T")
+        search_bar.send_keys(self.keyword)
+        search_bar.send_keys(Keys.RETURN)
+
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located(
+                (
+                    By.XPATH,
+                    "/html/body/form/div[1]/div/table/tbody/tr/td[3]/table/tbody/tr[1]/td[1]/font[2]/span[1]",
+                )
+            )
+        )
+
+        # counter
+        self.total_patent_found = self.driver.find_element(
+            By.XPATH,
+            "/html/body/form/div[1]/div/table/tbody/tr/td[3]/table/tbody/tr[1]/td[1]/font[1]",
+        ).text.replace(",", "")
+        self.total_page_found = self.driver.find_element(
+            By.XPATH,
+            "/html/body/form/div[1]/div/table/tbody/tr/td[3]/table/tbody/tr[1]/td[1]/font[2]/span[2]",
+        ).text.replace(",", "")
+
+        self.total_patent_found = int(self.total_patent_found)
+        self.total_page_found = int(self.total_page_found)
+
+        return self.total_patent_found, self.total_page_found
+
+    def get_patent_url(self, page: int = 1) -> list[str]:
         """Get list of patent
 
         Args:
             search_string (str): search string
+            page (str): page number
 
         Returns:
             list[WebElement]: selenium web elements
         """
         self.driver.get("https://gpss2.tipo.gov.tw/gpsskmc/gpssbkm")
-        title = self.driver.title
-        self.logger.info(f"Scraping {self.driver.title}", False)
+        self.logger.info(f"Scraping {self.driver.title} page:{page}", False)
 
         # search
         WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.NAME, "_21_1_T"))
         )
         search_bar = self.driver.find_element(By.NAME, "_21_1_T")
-        search_bar.send_keys(search_string)
+        search_bar.send_keys(self.keyword)
         search_bar.send_keys(Keys.RETURN)
+
+        # jump to page
+        page_bar = self.driver.find_element(By.ID, "jpage")
+        page_bar.send_keys(page)
+        page_bar.send_keys(Keys.RETURN)
 
         # wait 10 seconds for web page load
         WebDriverWait(self.driver, 10).until(
@@ -71,11 +112,12 @@ class Scraper(object):
 
         return target_url
 
-    def element_scrape(self, page_url: str) -> PatentInfo:
+    def get_patent_information(self, page_url: str, time_wait: int = 3) -> PatentInfo:
         """get patent info form page element
 
         Args:
-            element (WebElement): patent page
+            page_url  (str): patent page url
+            time_wait (int): time wait for next page
 
         Returns:
             PatentInfo: the information of patent info
@@ -134,7 +176,6 @@ class Scraper(object):
         self.logger.debug(f"Opening pdf: {page_url}")
 
         # switch window
-        self.logger.debug(self.driver.window_handles)
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.logger.debug(f"Switched windows:{self.driver.window_handles[-1]}")
 
@@ -182,8 +223,13 @@ class Scraper(object):
             PatentFilePath=patent_dict["PDFFilePath"],
         )
 
-        self.logger.info(len(self.driver.window_handles), self.driver.window_handles)
+        # clean up tabs
+        self.driver.close()
+        self.driver.switch_to.window(self.driver.window_handles[-1])
+        self.driver.close()
+        self.driver.switch_to.window(self.driver.window_handles[-1])
 
+        self.driver.implicitly_wait(time_wait)
         self.logger.info(patent_info, True)
         return patent_info
 
@@ -193,7 +239,8 @@ class Scraper(object):
 
 if __name__ == "__main__":
     scraper = Scraper()
-    webpage_elements = scraper.searching("鞋面")
-    for web_element in webpage_elements:
-        scraper.element_scrape(web_element)
+    total_patent, total_page = scraper.search("鞋面")
+    for page_number in range(1, total_page):
+        for url in scraper.get_patent_url(page=page_number):
+            scraper.get_patent_information(url)
     scraper.stop_driver()
