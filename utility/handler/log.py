@@ -2,28 +2,40 @@
 
 from pprint import pformat
 from typing import Any
+
+import inspect
 import logging
 
 
 class Logger(object):
-
     def __init__(
         self,
-        filename: str,
-        fmt: str = "%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s",
+        logger_name: str,
     ) -> None:
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(logger_name)
         self.handler = logging.StreamHandler()
 
+        # costume logging formats
+        self.fmt = "%(asctime)s - %(currentFuncName)s:%(currentFuncLine)d - %(levelname)s: %(message)s"
+        self.factory = logging.getLogRecordFactory()
+        self.costumed_log_record = self.record_factory
+        logging.setLogRecordFactory(self.costumed_log_record)
+
         logging.basicConfig(
-            filename=filename,
+            filename="./logger.log",
             filemode="w+",
             encoding="utf-8",
             level=logging.DEBUG,
-            format=fmt
+            format=self.fmt,
         )
 
         self.logger.addHandler(self.handler)
+
+    def record_factory(self, *args, **kwargs) -> logging.LogRecord:
+        record = self.factory(*args, **kwargs)
+        record.currentFuncName = inspect.stack()[-2].filename.split("\\")[-1]
+        record.currentFuncLine = inspect.stack()[-2].lineno
+        return record
 
     def set_module_level(self, module_name: str, level: int | str) -> None:
         logging.getLogger(module_name).setLevel(level)

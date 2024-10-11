@@ -6,6 +6,8 @@ from utility.handler.log import Logger
 from typing import Callable
 from functools import wraps
 
+from utility.modal.patent import PatentInfo
+
 import time
 
 
@@ -22,9 +24,9 @@ class Database(object):
             host (str): database host ip
             port (int, optional): PostgreSQL port number. Defaults to 5432.
         """
-        self.logger = Logger("./logging.log")
+        self.logger = Logger(__name__)
 
-        self.dbname = database
+        self.dbname = database.lower()
         self.user = user
         self.password = password
         self.host = host
@@ -32,14 +34,13 @@ class Database(object):
         self.connection_pool = None
         self._create_connection_pool()
 
+        self._initialize_table()
+
     def _initialize_database(self) -> None:
         """Connect to database and create the target database if it not exist."""
 
         _connection = connect(
-            user=self.user,
-            password=self.password,
-            host=self.host,
-            port=self.port
+            user=self.user, password=self.password, host=self.host, port=self.port
         )
         _connection.autocommit = True
 
@@ -52,12 +53,13 @@ class Database(object):
             return
         else:
             self.logger.info(f"Database {self.dbname} not exists, Creating")
-            _cursor.execute(f"CREATE DATABASE ({self.dbname})")
+            _cursor.execute(f"CREATE DATABASE {self.dbname}")
         _connection.commit()
 
         self.logger.info("Database created")
 
         _connection.close()
+        self._create_connection_pool()
 
     def _create_connection_pool(self):
         """Create a connection pool."""
@@ -66,7 +68,7 @@ class Database(object):
             self.connection_pool = pool.SimpleConnectionPool(
                 1,
                 20,
-                dbname=self.dbname.lower(),
+                dbname=self.dbname,
                 user=self.user,
                 password=self.password,
                 host=self.host,
@@ -79,25 +81,31 @@ class Database(object):
             self.logger.info(f"Trying to initialize Database {self.dbname}")
             self._initialize_database()
 
-            self.connection_pool = None
+            # self.connection_pool = None
 
-    def _get_connection(self):
+    def _get_connection(self, retry: int = 3):
         """Get a connection from the pool."""
+
+        self.logger.info(f"Getting connection from pool")
+        if retry == 0:
+            self.logger.critical("Failed to get connection")
+            raise Exception("Failed to get connection")
 
         if self.connection_pool:
             try:
                 connection = self.connection_pool.getconn()
                 if connection.closed:
-                    self.logger.info(
-                        "Connection was closed, trying to reconnect...")
-                    connection = self.connection_pool.getconn()  # Reconnect
+                    self.logger.info("Connection was closed, trying to reconnect...")
+                    connection = self.connection_pool.getconn()
                 return connection
             except OperationalError as e:
                 self.logger.error(f"Error during getting connection: {e}")
                 self._create_connection_pool()
+                self._get_connection(retry=retry - 1)
         else:
             self.logger.critical("Connection pool is not available.")
             self._create_connection_pool()
+            self._get_connection(retry=retry - 1)
 
     def _release_connection(self, connection):
         """Release a connection back to the pool."""
@@ -113,7 +121,7 @@ class Database(object):
         def wrapper(self, *args, **kwargs):
             connection = self._get_connection()
             cursor = connection.cursor(cursor_factory=DictCursor)
-            start_time = time.time()  # Start the timer
+            start_time = time.time()
             try:
                 result = func(self, cursor, *args, **kwargs)
 
@@ -141,7 +149,9 @@ class Database(object):
         return wrapper
 
     @auto_commit
-    def execute_sql_statement(self, cursor: DictCursor, query: str, params: dict | None = None):
+    def execute_sql_statement(
+        self, cursor: DictCursor, query: str, params: dict | None = None
+    ):
         """Fetch one result from a query."""
         cursor.execute(query, params)
 
@@ -157,6 +167,34 @@ class Database(object):
         cursor.execute(query, params)
         return cursor.fetchone()
 
+    def _initialize_table(self) -> None:
+        """check if the patent table exists
+
+        Returns:
+            bool: True if the table exists otherwise not exist
+        """
+
+        statement = """
+            CREATE TABLE IF NOT EXISTS patent (
+                ApplicationDate INT,
+                PublicationDate INT,
+                ApplicationNumber VARCHAR(255),
+                PublicationNumber VARCHAR(255),
+                Applicant VARCHAR(255),
+                Inventor TEXT DEFAULT NULL,
+                Attorney TEXT DEFAULT NULL,
+                Priority VARCHAR(255) DEFAULT NULL,
+                GazetteIPC VARCHAR(255),
+                IPC VARCHAR(255),
+                GazetteVolume VARCHAR(255),
+                KindCodes VARCHAR(255),
+                PatentURL VARCHAR(255),
+                PatentFilePath VARCHAR(255)
+            );
+        """
+        self.execute_sql_statement(statement)
+        self.logger.info("Patent table created successfully!")
+
     def close(self):
         """Close the connection pool."""
         if self.connection_pool:
@@ -166,37 +204,66 @@ class Database(object):
 
 class DatabaseOperator(Database):
     def __init__(
-        self, database: str, user: str, password: str, host: str = "localhost", port: int = 5432
+        self,
+        database: str,
+        user: str,
+        password: str,
+        host: str = "localhost",
+        port: int = 5432,
     ) -> None:
         super().__init__(database, user, password, host, port)
-        self._check_patent_table_exist()
 
-    def _check_patent_table_exist(self) -> None:
-        """check if the patent table exists
+    def inset_patent(self, patent_info: PatentInfo) -> None:
+        """insert patent information into patent table
+
+        Args:
+            patent_info (list[PatentInfo] | PatentInfo): list of patent information
 
         Returns:
-            bool: True if the table exists otherwise not exist
+            bool: success or failure
         """
+        self.execute_sql_statement(
+            """
+            INSERT INTO patent (
+                ApplicationDate,
+                PublicationDate,
+                ApplicationNumber,
+                PublicationNumber,
+                Applicant,
+                Inventor,
+                Attorney,
+                Priority,
+                GazetteIPC,
+                IPC,
+                GazetteVolume,
+                KindCodes,
+                PatentURL,
+                PatentFilePath
+            ) VALUES (
+                %(ApplicationDate)s,
+                %(PublicationDate)s,
+                %(ApplicationNumber)s,
+                %(PublicationNumber)s,
+                %(Applicant)s,
+                %(Inventor)s,
+                %(Attorney)s,
+                %(Priority)s,
+                %(GazetteIPC)s,
+                %(IPC)s,
+                %(GazetteVolume)s,
+                %(KindCodes)s,
+                %(PatentURL)s,
+                %(PatentFilePath)s
+            )""",
+            patent_info.model_dump(),
+        )
 
-        self.fetch_all("SELECT * FROM pg_catalog.pg_tables;")
 
-
-        statement = """
-            CREATE TABLE Patent (
-                ApplicationDate INT,
-                PublicationDate INT,
-                ApplicationNumber VARCHAR(255),
-                PublicationNumber VARCHAR(255),
-                Applicant VARCHAR(255),
-                Inventor VARCHAR(255),
-                Attorney VARCHAR(255),
-                Priority VARCHAR(255),
-                GazetteIPC VARCHAR(255),
-                IPC VARCHAR(255),
-                GazetteVolume VARCHAR(255),
-                KindCodes VARCHAR(255),
-                URL VARCHAR(255)
-            );
-        """
-        self.execute_sql_statement(statement)
-        self.logger.info("Patent table created successfully!")
+if __name__ == "__main__":
+    database = DatabaseOperator(
+        database="PatentDatabase",
+        user="postgres",
+        password="example_password",
+        host="localhost",
+        port=5432,
+    )

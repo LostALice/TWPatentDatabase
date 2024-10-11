@@ -10,28 +10,24 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium import webdriver
 
+from utility.handler.database import DatabaseOperator
 from utility.modal.patent import PatentInfo
 from collections import defaultdict
 
 from urllib.request import urlopen
+from uuid import uuid4
 
 import re
 
 
 class Scraper(object):
-    def __init__(
-        self, headless: bool = False, page_load_strategy: str = "eager"
-    ) -> None:
+    def __init__(self, page_load_strategy: str = "eager") -> None:
         self.options = webdriver.EdgeOptions()
         self.options.page_load_strategy = page_load_strategy
 
-        # self.options.headless = headless
-        if headless:
-            self.options.add_argument("--headless")
-
         self.driver = webdriver.Edge(options=self.options)
 
-        self.logger = Logger("./logging.log")
+        self.logger = Logger(__name__)
         # disable following modules logging to warnings
         self.logger.set_module_level("selenium", "WARNING")
         self.logger.set_module_level("urllib3", "WARNING")
@@ -145,11 +141,10 @@ class Scraper(object):
 
         # find patent information
         self.logger.info("Page loaded. Finding patent information...")
-        patent_info_category = self.driver.find_elements(
-            By.CLASS_NAME, "dettb01")
+        patent_info_category = self.driver.find_elements(By.CLASS_NAME, "dettb01")
         patent_info_value = self.driver.find_elements(By.CLASS_NAME, "dettb02")
 
-        # in chinese version
+        # page in chinese version
         # 申請日 ApplicationDate: int
         # 公開日 PublicationDate: int
         # 申請號 ApplicationNumber: str
@@ -203,12 +198,13 @@ class Scraper(object):
         # download pdf
         pdf_url = self.driver.current_url
         self.logger.info(f"Downloading pdf:{pdf_url}")
-        pdf_file_name_regex_group = re.search("([A-Z]+-\d+)\.pdf", pdf_url)
+        pdf_file_name_regex_group = re.search(r"([A-Z]+-\d+)\.pdf", pdf_url)
 
         if pdf_file_name_regex_group:
             pdf_file_name = pdf_file_name_regex_group.group(1)
-
-        patent_dict["PDFFilePath"] = f"./patent/{pdf_file_name}.pdf"
+            patent_dict["PDFFilePath"] = f"./patent/{pdf_file_name}.pdf"
+        else:
+            patent_dict["PDFFilePath"] = f"./patent/{str(uuid4())}.pdf"
 
         try:
             pdf_file = urlopen(pdf_url)
@@ -217,8 +213,7 @@ class Scraper(object):
                     f.write(pdf_file.read())
                 WebDriverWait(self.driver, 5)
             else:
-                self.logger.error(
-                    "Failed to download PDF, content-type mismatch.")
+                self.logger.error("Failed to download PDF, content-type mismatch.")
         except Exception as e:
             self.logger.error(f"Error downloading PDF: {str(e)}")
 
@@ -255,8 +250,16 @@ class Scraper(object):
 
 if __name__ == "__main__":
     scraper = Scraper()
+    database = DatabaseOperator(
+        database="PatentDatabase",
+        user="postgres",
+        password="example_password",
+        host="localhost",
+        port=5432,
+    )
+
     total_patent, total_page = scraper.search("鞋面")
-    for page_number in range(1, total_page):
-        for url in scraper.get_patent_url(page=page_number):
-            scraper.get_patent_information(url)
+    for url in scraper.get_patent_url(page=1):
+        patent_info = scraper.get_patent_information(url)
+        database.inset_patent(patent_info)
     scraper.stop_driver()
