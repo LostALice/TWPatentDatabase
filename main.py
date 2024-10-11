@@ -24,7 +24,10 @@ class Scraper(object):
     ) -> None:
         self.options = webdriver.EdgeOptions()
         self.options.page_load_strategy = page_load_strategy
-        self.options.headless = headless
+
+        # self.options.headless = headless
+        if headless:
+            self.options.add_argument("--headless")
 
         self.driver = webdriver.Edge(options=self.options)
 
@@ -64,10 +67,17 @@ class Scraper(object):
             "/html/body/form/div[1]/div/table/tbody/tr/td[3]/table/tbody/tr[1]/td[1]/font[2]/span[2]",
         ).text.replace(",", "")
 
-        self.total_patent_found = int(self.total_patent_found)
-        self.total_page_found = int(self.total_page_found)
+        if self.total_patent_found:
+            self.total_patent = int(self.total_patent_found)
+        else:
+            self.total_patent = 0
 
-        return self.total_patent_found, self.total_page_found
+        if self.total_page_found:
+            self.total_page = int(self.total_page_found)
+        else:
+            self.total_page = 0
+
+        return self.total_patent, self.total_page
 
     def get_patent_url(self, page: int = 1) -> list[str]:
         """Get list of patent
@@ -92,7 +102,7 @@ class Scraper(object):
 
         # jump to page
         page_bar = self.driver.find_element(By.ID, "jpage")
-        page_bar.send_keys(page)
+        page_bar.send_keys(str(page))
         page_bar.send_keys(Keys.RETURN)
 
         # wait 10 seconds for web page load
@@ -135,7 +145,8 @@ class Scraper(object):
 
         # find patent information
         self.logger.info("Page loaded. Finding patent information...")
-        patent_info_category = self.driver.find_elements(By.CLASS_NAME, "dettb01")
+        patent_info_category = self.driver.find_elements(
+            By.CLASS_NAME, "dettb01")
         patent_info_value = self.driver.find_elements(By.CLASS_NAME, "dettb02")
 
         # in chinese version
@@ -192,7 +203,11 @@ class Scraper(object):
         # download pdf
         pdf_url = self.driver.current_url
         self.logger.info(f"Downloading pdf:{pdf_url}")
-        pdf_file_name = re.search("([A-Z]+-\d+)\.pdf", pdf_url).group(1)
+        pdf_file_name_regex_group = re.search("([A-Z]+-\d+)\.pdf", pdf_url)
+
+        if pdf_file_name_regex_group:
+            pdf_file_name = pdf_file_name_regex_group.group(1)
+
         patent_dict["PDFFilePath"] = f"./patent/{pdf_file_name}.pdf"
 
         try:
@@ -202,7 +217,8 @@ class Scraper(object):
                     f.write(pdf_file.read())
                 WebDriverWait(self.driver, 5)
             else:
-                self.logger.error("Failed to download PDF, content-type mismatch.")
+                self.logger.error(
+                    "Failed to download PDF, content-type mismatch.")
         except Exception as e:
             self.logger.error(f"Error downloading PDF: {str(e)}")
 

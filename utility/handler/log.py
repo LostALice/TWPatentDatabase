@@ -16,11 +16,13 @@ class Logger(object):
         self.handler = logging.StreamHandler()
 
         logging.basicConfig(
-            filename=filename, filemode="w+", encoding="utf-8", level=logging.DEBUG
+            filename=filename,
+            filemode="w+",
+            encoding="utf-8",
+            level=logging.DEBUG,
+            format=fmt
         )
 
-        self.formatter = logging.Formatter(fmt)
-        self.handler.setFormatter(self.formatter)
         self.logger.addHandler(self.handler)
 
     def set_module_level(self, module_name: str, level: int | str) -> None:

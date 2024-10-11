@@ -1,13 +1,15 @@
 # Code by AkinoAlice@TyrantRey
 
 from psycopg2 import OperationalError, pool, connect
+from psycopg2.extras import DictCursor
+from utility.handler.log import Logger
+from typing import Callable
 from functools import wraps
-from log import Logger
 
 import time
 
 
-class Database:
+class Database(object):
     def __init__(
         self, database: str, user: str, password: str, host: str, port: int = 5432
     ) -> None:
@@ -20,6 +22,8 @@ class Database:
             host (str): database host ip
             port (int, optional): PostgreSQL port number. Defaults to 5432.
         """
+        self.logger = Logger("./logging.log")
+
         self.dbname = database
         self.user = user
         self.password = password
@@ -28,40 +32,32 @@ class Database:
         self.connection_pool = None
         self._create_connection_pool()
 
-        self.logger = Logger("./logging.log")
-
     def _initialize_database(self) -> None:
-        """Connect to "postgres" database and create the target database if it not exist."""
-        try:
-            conn = connect(
-                dbname=self.dbname,
-                user=self.user,
-                password=self.password,
-                host=self.host,
-                port=self.port,
-            )
-            conn.autocommit = True  # We need to auto-commit for creating the database
-            cursor = conn.cursor()
+        """Connect to database and create the target database if it not exist."""
 
-            # Check if the target database exists
-            cursor.execute(
-                "SELECT 1 FROM pg_database WHERE datname = %s", (self.dbname,)
-            )
-            db_exists = cursor.fetchone()
+        _connection = connect(
+            user=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port
+        )
+        _connection.autocommit = True
 
-            if not db_exists:
-                # Create the database if it doesn"t exist
-                Logger.info(f"Database {self.dbname} does not exist. Creating")
-                cursor.execute(f"CREATE DATABASE {self.dbname}")
-                Logger.info(f"Database {self.dbname} created successfully.")
-            else:
-                Logger.info(f"Database {self.dbname} already exists.")
+        _cursor = _connection.cursor(cursor_factory=DictCursor)
 
-            cursor.close()
-            conn.close()
-        except OperationalError as e:
-            Logger.error(f"Error while initializing database: {e}")
-            raise
+        _cursor.execute("SELECT datname FROM pg_database")
+        result = _cursor.fetchall()
+        if [self.dbname] in result:
+            self.logger.info(f"Database {self.dbname} already exists")
+            return
+        else:
+            self.logger.info(f"Database {self.dbname} not exists, Creating")
+            _cursor.execute(f"CREATE DATABASE ({self.dbname})")
+        _connection.commit()
+
+        self.logger.info("Database created")
+
+        _connection.close()
 
     def _create_connection_pool(self):
         """Create a connection pool."""
@@ -70,16 +66,19 @@ class Database:
             self.connection_pool = pool.SimpleConnectionPool(
                 1,
                 20,
-                dbname=self.database,
+                dbname=self.dbname.lower(),
                 user=self.user,
                 password=self.password,
                 host=self.host,
                 port=self.port,
             )
-            Logger.info("Connection pool created successfully")
+            self.logger.info("Connection pool created successfully")
 
         except OperationalError as e:
-            Logger.error(f"Error creating connection pool: {e}")
+            self.logger.error(f"Error creating connection pool: {e}")
+            self.logger.info(f"Trying to initialize Database {self.dbname}")
+            self._initialize_database()
+
             self.connection_pool = None
 
     def _get_connection(self):
@@ -89,14 +88,15 @@ class Database:
             try:
                 connection = self.connection_pool.getconn()
                 if connection.closed:
-                    Logger.info("Connection was closed, trying to reconnect...")
+                    self.logger.info(
+                        "Connection was closed, trying to reconnect...")
                     connection = self.connection_pool.getconn()  # Reconnect
                 return connection
             except OperationalError as e:
-                Logger.error(f"Error during getting connection: {e}")
+                self.logger.error(f"Error during getting connection: {e}")
                 self._create_connection_pool()
         else:
-            Logger.critical("Connection pool is not available.")
+            self.logger.critical("Connection pool is not available.")
             self._create_connection_pool()
 
     def _release_connection(self, connection):
@@ -105,34 +105,33 @@ class Database:
         if self.connection_pool and connection:
             self.connection_pool.putconn(connection)
 
-    def auto_commit(func):
+    @staticmethod
+    def auto_commit(func: Callable) -> Callable:
         """Decorator to commit changes after function execution."""
 
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             connection = self._get_connection()
-            cursor = connection.cursor()
+            cursor = connection.cursor(cursor_factory=DictCursor)
             start_time = time.time()  # Start the timer
             try:
-                # Execute the function
                 result = func(self, cursor, *args, **kwargs)
 
-                # Commit after function execution
                 connection.commit()
 
                 query_time = time.time() - start_time
                 query = args[0]
                 params = args[1] if len(args) > 1 else None
-                Logger.info(
+                self.logger.info(
                     f"Executed query: {query}, Params: {params}, Time: {query_time:.4f}s"
                 )
 
                 return result
-            except Exception as e:
 
-                # Rollback in case of error
+            # Rollback in case of error
+            except Exception as e:
                 connection.rollback()
-                Logger.error(f"Error: {e}")
+                self.logger.error(f"Error: {e}")
                 raise
 
             finally:
@@ -142,7 +141,18 @@ class Database:
         return wrapper
 
     @auto_commit
-    def fetch_one(self, cursor, query, params=None):
+    def execute_sql_statement(self, cursor: DictCursor, query: str, params: dict | None = None):
+        """Fetch one result from a query."""
+        cursor.execute(query, params)
+
+    @auto_commit
+    def fetch_all(self, cursor: DictCursor, query: str, params: dict | None = None):
+        """Fetch all result from a query."""
+        cursor.execute(query, params)
+        return cursor.fetchone()
+
+    @auto_commit
+    def fetch_one(self, cursor: DictCursor, query: str, params: dict | None = None):
         """Fetch one result from a query."""
         cursor.execute(query, params)
         return cursor.fetchone()
@@ -154,18 +164,39 @@ class Database:
             print("Connection pool closed")
 
 
-if __name__ == "__main__":
-    db = Database(
-        database="your_db", user="your_user", password="your_pass", host="localhost"
-    )
+class DatabaseOperator(Database):
+    def __init__(
+        self, database: str, user: str, password: str, host: str = "localhost", port: int = 5432
+    ) -> None:
+        super().__init__(database, user, password, host, port)
+        self._check_patent_table_exist()
 
-    try:
-        db.execute_query(
-            "CREATE TABLE IF NOT EXISTS test_table(id SERIAL PRIMARY KEY, name TEXT)"
-        )
-        db.execute_query("INSERT INTO test_table (name) VALUES (%s)", ("John Doe",))
-        rows = db.fetch_all("SELECT * FROM test_table")
-        Logger.debug(rows)
+    def _check_patent_table_exist(self) -> None:
+        """check if the patent table exists
 
-    finally:
-        db.close()
+        Returns:
+            bool: True if the table exists otherwise not exist
+        """
+
+        self.fetch_all("SELECT * FROM pg_catalog.pg_tables;")
+
+
+        statement = """
+            CREATE TABLE Patent (
+                ApplicationDate INT,
+                PublicationDate INT,
+                ApplicationNumber VARCHAR(255),
+                PublicationNumber VARCHAR(255),
+                Applicant VARCHAR(255),
+                Inventor VARCHAR(255),
+                Attorney VARCHAR(255),
+                Priority VARCHAR(255),
+                GazetteIPC VARCHAR(255),
+                IPC VARCHAR(255),
+                GazetteVolume VARCHAR(255),
+                KindCodes VARCHAR(255),
+                URL VARCHAR(255)
+            );
+        """
+        self.execute_sql_statement(statement)
+        self.logger.info("Patent table created successfully!")
