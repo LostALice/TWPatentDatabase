@@ -1,6 +1,6 @@
 # Code by AkinoAlice@Tyrant_Rex
 
-from utility.handler.log_handler import Logger
+from utility.handler.log import Logger
 
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
