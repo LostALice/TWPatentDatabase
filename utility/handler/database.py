@@ -13,7 +13,7 @@ import time
 
 class Database(object):
     def __init__(
-        self, database: str, user: str, password: str, host: str, port: int = 5432
+        self, database: str, user: str, password: str, host: str, port: int = 5432, debug: bool = False
     ) -> None:
         """Initialize a new Database connection
 
@@ -31,6 +31,7 @@ class Database(object):
         self.password = password
         self.host = host
         self.port = port
+        self.debug = debug
         self.connection_pool = None
         self._create_connection_pool()
 
@@ -48,7 +49,9 @@ class Database(object):
 
         _cursor.execute("SELECT datname FROM pg_database")
         result = _cursor.fetchall()
-        if [self.dbname] in result:
+
+        # if self.debug == True ==> init new database
+        if [self.dbname] in result or not self.debug:
             self.logger.info(f"Database {self.dbname} already exists")
             return
         else:
@@ -210,8 +213,9 @@ class DatabaseOperator(Database):
         password: str,
         host: str = "localhost",
         port: int = 5432,
+        debug: bool = False
     ) -> None:
-        super().__init__(database, user, password, host, port)
+        super().__init__(database, user, password, host, port, debug)
 
     def inset_patent(self, patent_info: PatentInfo) -> None:
         """insert patent information into patent table

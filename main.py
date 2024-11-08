@@ -18,10 +18,11 @@ from urllib.request import urlopen
 from uuid import uuid4
 
 import re
+import os
 
 
 class Scraper(object):
-    def __init__(self, page_load_strategy: str = "eager") -> None:
+    def __init__(self, page_load_strategy: str = "eager", pdf_file_path: str = "./patent/") -> None:
         self.options = webdriver.EdgeOptions()
         self.options.page_load_strategy = page_load_strategy
 
@@ -31,6 +32,10 @@ class Scraper(object):
         # disable following modules logging to warnings
         self.logger.set_module_level("selenium", "WARNING")
         self.logger.set_module_level("urllib3", "WARNING")
+        self.pdf_file_path = pdf_file_path
+
+        if not os.path.exists(self.pdf_file_path):
+            os.mkdir(self.pdf_file_path)
 
     def search(self, keyword: str) -> tuple[int, int]:
         self.driver.get("https://gpss2.tipo.gov.tw/gpsskmc/gpssbkm")
@@ -256,6 +261,7 @@ if __name__ == "__main__":
         password="example_password",
         host="localhost",
         port=5432,
+        debug=True
     )
 
     total_patent, total_page = scraper.search("鞋面")
