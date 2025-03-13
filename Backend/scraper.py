@@ -3,7 +3,6 @@
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
 from urllib.request import urlopen
 
 from selenium import webdriver
@@ -13,15 +12,18 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 
+from utility.handler.database import Database
 from utility.handler.log_handler import Logger
-from utility.modal.patent import PatentInfo
+from utility.modal.database import DatabaseConfig
+from utility.modal.scraper import PatentInfo
 
 
 class Scraper:
     """Scraper class for scraping Taiwan Patent Office's website."""
 
     def __init__(self) -> None:
-        """Initialize the Scraper with the given page load strategy.
+        """
+        Initialize the Scraper with the given page load strategy.
 
         Args:
             page_load_strategy (str, optional): _description_. Defaults to "eager".
@@ -41,7 +43,8 @@ class Scraper:
         # self.logger.set_module_level("urllib3", "WARNING")
 
     def search(self, keyword: str) -> tuple[int, int]:
-        """Perform a search on Taiwan Patent Office's website.
+        """
+        Perform a search on Taiwan Patent Office's website.
 
         Args:
             keyword (str): keyword to search
@@ -84,7 +87,8 @@ class Scraper:
         return self.total_patent_found, self.total_page_found
 
     def get_patent_url(self, page: int = 1) -> list[str]:
-        """Get list of patent.
+        """
+        Get list of patent.
 
         Args:
             search_string (str): search string
@@ -123,8 +127,9 @@ class Scraper:
 
         return target_url
 
-    def get_patent_information(self, page_url: str, time_wait: int = 3) -> Optional[PatentInfo]:
-        """Get patent info form page element.
+    def get_patent_information(self, page_url: str, time_wait: int = 3) -> PatentInfo:
+        """
+        Get patent info form page element.
 
         Args:
             page_url  (str): patent page url
@@ -187,7 +192,6 @@ class Scraper:
 
         # switch window
         self.driver.switch_to.window(self.driver.window_handles[-1])
-        # self.driver.switch_to.new_window("window")
         self.logger.debug("Switched windows: %s", self.driver.window_handles[-1])
 
         # switch to iframe
@@ -205,16 +209,20 @@ class Scraper:
             "/html/body/form/table/tbody/tr[6]/td/input",
         )
 
-        pdf_frameset.click()
-        self.driver.switch_to.window(self.driver.window_handles[2])
+        ActionChains(self.driver).move_to_element(pdf_frameset).key_down(Keys.CONTROL).click().perform()
+        self.driver.switch_to.window(self.driver.window_handles[-1])
         self.logger.debug("Switched windows: %s", self.driver.window_handles[-1])
 
-        # download pdf
-        pdf_url = self.driver.current_url
-        self.logger.info(pdf_url)
+        # wait redirect
+        while not self.driver.current_url.endswith(".pdf"):
+            WebDriverWait(self.driver, 1)
+            pdf_url = self.driver.current_url
+            self.logger.info(pdf_url)
+
         self.logger.info("Downloading pdf: %s", pdf_url)
         pdf_file_name_group = re.search(r"([A-Z]+-\d+)\.pdf", pdf_url)
 
+        # download pdf
         if not pdf_file_name_group:
             self.logger.error("Failed to get PDF file name from URL.")
             pdf_file_name = "".join([c for c in pdf_url if re.match(r"\w", c)])
@@ -225,16 +233,15 @@ class Scraper:
 
         try:
             pdf_file = urlopen(pdf_url)  # noqa: S310
-            if "application/pdf" in pdf_file.info().get_content_type():
-                with open(patent_dict["PDFFilePath"], "wb") as f:  # noqa: PTH123
+            content_type = pdf_file.info().get_content_type()
+            if "application/pdf" in content_type:
+                with Path(patent_dict["PDFFilePath"]).open("wb") as f:
                     f.write(pdf_file.read())
                 WebDriverWait(self.driver, 5)
             else:
-                self.logger.error("Failed to download PDF, content-type mismatch.")
-                # print("asd")
+                self.logger.error("Failed to download PDF, content-type mismatch. File type: %s", content_type)
         except Exception as e:
-            self.logger.error("Error downloading PDF:", str(e))
-            # print(e)
+            self.logger.exception("Error downloading PDF: %s", str(e))  # noqa: TRY401
 
         patent_info = PatentInfo(
             ApplicationDate=int(patent_dict["申請日"]),
@@ -255,9 +262,7 @@ class Scraper:
 
         # clean up tabs
         self.driver.close()
-        self.driver.switch_to.window(self.driver.window_handles[-1])
-        self.driver.close()
-        self.driver.switch_to.window(self.driver.window_handles[-1])
+        self.driver.switch_to.window(self.driver.window_handles[0])
 
         self.driver.implicitly_wait(time_wait)
         self.logger.info(patent_info)
@@ -271,9 +276,17 @@ class Scraper:
 
 if __name__ == "__main__":
     scraper = Scraper()
+    database_config = DatabaseConfig(
+        host="localhost",
+        port=3306,
+        user="root",
+        password="password",
+        database="patent_database",
+    )
+    database = Database(config=database_config, debug=True)
     total_patent, total_page = scraper.search("鞋面")
     # for page_number in range(1, total_page):
-    for page_number in range(1, 2):
+    for page_number in range(1, 5):
         for url in scraper.get_patent_url(page=page_number):
             scraper.get_patent_information(url)
     # scraper.stop_driver()

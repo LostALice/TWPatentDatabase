@@ -7,6 +7,7 @@ requires-python = ">=3.9"
 dependencies = [
     "fastapi>=0.115.11",
     "mypy>=1.15.0",
+    "psycopg2>=2.9.10",
     "pydantic>=2.10.6",
     "python-dotenv>=1.0.1",
     "ruff>=0.9.10",
@@ -15,7 +16,39 @@ dependencies = [
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["D100", "ERA001", "FA"]
+ignore = [
+    #### modules
+    "ANN", # flake8-annotations
+    "COM", # flake8-commas
+    "C90", # mccabe complexity
+    "DJ",  # django
+    "EXE", # flake8-executable
+    "T10", # debugger
+    "TID", # flake8-tidy-imports
+    "FBT",
+    "BLE001",
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D200",
+    "D205",
+    "D212",
+    "D400",
+    "D401",
+    "D415",
+    "E402",
+    "E501",
+    "ERA001",
+    "TRY003",
+    "TD002",
+    "TD003",
+    "FIX002",
+]
 
 [tool.ruff]
 line-length = 120
