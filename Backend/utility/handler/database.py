@@ -5,18 +5,19 @@ from typing import Callable
 
 import psycopg2
 import psycopg2.extras
-from Backend.utility.modal.database import DatabaseConfig
-from Backend.utility.modal.scraper import PatentInfo
-from log_handler import Logger
+
+from utility.handler.log_handler import Logger
+from utility.model.handler.database import DatabaseConfig
+from utility.model.handler.scraper import PatentInfo
 
 
 class Database:
-    def __init__(self, config: DatabaseConfig, debug: bool = False):
+    def __init__(self, config: DatabaseConfig, debug: bool = False) -> None:
         """Initialize the Database instance with connection parameters."""
         self.logger = Logger("./logging.log").logger
 
         self.host = config.host
-        self.user = config.user
+        self.user = config.username
         self.password = config.password
         self.database = config.database
         self.port = config.port
@@ -30,7 +31,7 @@ class Database:
             self.init_database()
             self.clear_database()
         else:
-            self.clear_database()
+            self.init_database()
 
     @staticmethod
     def __db_error_handling_wrapper(func: Callable):
@@ -84,7 +85,8 @@ class Database:
 
     @__db_error_handling_wrapper
     def insert_patent(self, patent: PatentInfo) -> bool:
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             INSERT INTO patent (
                 application_date,
                 publication_date,
@@ -102,7 +104,8 @@ class Database:
                 patent_file_path
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """, (
+            """,
+            (
                 patent.ApplicationDate,
                 patent.PublicationDate,
                 patent.ApplicationNumber,
@@ -117,7 +120,8 @@ class Database:
                 patent.KindCodes,
                 patent.PatentURL,
                 patent.PatentFilePath,
-            ))
+            ),
+        )
 
         self.cursor.commit()
         return True
@@ -143,12 +147,17 @@ class Database:
 # Example usage:
 if __name__ == "__main__":
     # Replace with your actual connection parameters
-    db = Database(host="localhost", database="patent", user="admin", password="password", port=5432, debug=True)
-
-    db.connect()
+    database_config = DatabaseConfig(
+        host="localhost",
+        port=3306,
+        username="root",
+        password="password",
+        database="patent_database",
+    )
+    database = Database(config=database_config, debug=True)
 
     # Execute a query to retrieve the PostgreSQL version.
     # version = db.execute_query("SELECT version();", fetch_one=True)
     # print("PostgreSQL version:", version)
 
-    db.close()
+    database.close()

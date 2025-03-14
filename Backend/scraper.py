@@ -14,8 +14,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from utility.handler.database import Database
 from utility.handler.log_handler import Logger
-from utility.modal.database import DatabaseConfig
-from utility.modal.scraper import PatentInfo
+from utility.model.handler.database import DatabaseConfig
+from utility.model.handler.scraper import PatentInfo
 
 
 class Scraper:
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     database_config = DatabaseConfig(
         host="localhost",
         port=3306,
-        user="root",
+        username="root",
         password="password",
         database="patent_database",
     )
@@ -288,5 +288,7 @@ if __name__ == "__main__":
     # for page_number in range(1, total_page):
     for page_number in range(1, 5):
         for url in scraper.get_patent_url(page=page_number):
-            scraper.get_patent_information(url)
-    # scraper.stop_driver()
+            patent_data = scraper.get_patent_information(url)
+            database.insert_patent(patent_data)
+
+    scraper.stop_driver()
