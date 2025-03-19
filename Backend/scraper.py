@@ -274,7 +274,7 @@ if __name__ == "__main__":
     scraper = Scraper()
     database_config = DatabaseConfig(
         host="localhost",
-        port=3306,
+        port=5432,
         username="root",
         password="password",
         database="patent_database",
