@@ -223,18 +223,13 @@ class Scraper:
 
         patent_dict["PDFFilePath"] = f"./patent/{pdf_file_name}.pdf"
 
-        try:
-            pdf_file = urlopen(pdf_url)  # noqa: S310
-            if "application/pdf" in pdf_file.info().get_content_type():
-                with open(patent_dict["PDFFilePath"], "wb") as f:  # noqa: PTH123
-                    f.write(pdf_file.read())
-                WebDriverWait(self.driver, 5)
-            else:
-                self.logger.error("Failed to download PDF, content-type mismatch.")
-                # print("asd")
-        except Exception as e:
-            self.logger.error("Error downloading PDF:", str(e))
-            # print(e)
+        pdf_file = urlopen(pdf_url)  # noqa: S310
+        if "application/pdf" in pdf_file.info().get_content_type():
+            with open(patent_dict["PDFFilePath"], "wb") as f:  # noqa: PTH123
+                f.write(pdf_file.read())
+            WebDriverWait(self.driver, 5)
+        else:
+            self.logger.error("Failed to download PDF, content-type mismatch.")
 
         patent_info = PatentInfo(
             ApplicationDate=int(patent_dict["申請日"]),
