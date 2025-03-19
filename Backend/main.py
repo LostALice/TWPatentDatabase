@@ -5,6 +5,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from application import authorization, history, report, result, search
+
 app = FastAPI()
 
 # development
@@ -25,4 +27,30 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.include_router(
+    authorization.router,
+    prefix="/api/v1",
+    tags=["Authorization", "v1"],
+)
+app.include_router(
+    search.router,
+    prefix="/api/v1",
+    tags=["Search", "v1"],
+)
+app.include_router(
+    result.router,
+    prefix="/api/v1",
+    tags=["Result", "v1"],
+)
+app.include_router(
+    history.router,
+    prefix="/api/v1",
+    tags=["History", "v1"],
+)
+app.include_router(
+    report.router,
+    prefix="/api/v1",
+    tags=["Report", "v1"],
 )
