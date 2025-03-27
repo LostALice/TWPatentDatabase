@@ -4,11 +4,8 @@ from os import getenv
 from pprint import pformat
 from typing import Literal
 
-import numpy as np
+from log_handler import Logger
 from pymilvus import DataType, MilvusClient
-
-from Backend.utility.handler.log_handler import Logger
-# from Backend.utility.modal.handler.
 
 # development
 if getenv("DEBUG") == "True":
@@ -146,98 +143,98 @@ class MilvusHandler(SetupMilvus):
     def __init__(self) -> None:
         super().__init__()
 
-    def insert_sentence(
-        self,
-        docs_filename: str,
-        vector: np.ndarray,
-        content: str,
-        file_uuid: str,
-        collection: str = "default",
-        remove_duplicates: bool = True,
-    ) -> dict:
-        """
-        Insert a sentence (regulation) from a document into the vector database.
+    # def insert_sentence(
+    #     self,
+    #     docs_filename: str,
+    #     vector: np.ndarray,
+    #     content: str,
+    #     file_uuid: str,
+    #     collection: str = "default",
+    #     remove_duplicates: bool = True,
+    # ) -> dict:
+    #     """
+    #     Insert a sentence (regulation) from a document into the vector database.
 
-        This function inserts a sentence along with its associated metadata into the specified
-        collection in the vector database. It can optionally remove duplicates before insertion.
+    #     This function inserts a sentence along with its associated metadata into the specified
+    #     collection in the vector database. It can optionally remove duplicates before insertion.
 
-        Args:
-            docs_filename (str): The filename of the document containing the sentence.
-            vector (np.ndarray): The vector representation of the sentence.
-            content (str): The actual content of the sentence.
-            file_uuid (str): A unique identifier for the file.
-            collection (str, optional): The name of the collection to insert into. Defaults to "default".
-            remove_duplicates (bool, optional): Whether to remove duplicate entries before insertion. Defaults to True.
+    #     Args:
+    #         docs_filename (str): The filename of the document containing the sentence.
+    #         vector (np.ndarray): The vector representation of the sentence.
+    #         content (str): The actual content of the sentence.
+    #         file_uuid (str): A unique identifier for the file.
+    #         collection (str, optional): The name of the collection to insert into. Defaults to "default".
+    #         remove_duplicates (bool, optional): Whether to remove duplicate entries before insertion. Defaults to True.
 
-        Returns:
-            dict: A dictionary containing information about the insertion operation, including
-                  the number of rows inserted and the list of inserted primary keys.
-        """
-        # fix duplicates
-        if remove_duplicates:
-            is_duplicates = self.milvus_client.query(
-                collection_name=collection,
-                filter=f"""(source == "{docs_filename}") and (content == "{content}")""",  # fmt: off
-            )  # nopep8
-            if is_duplicates:
-                info = self.milvus_client.delete(collection_name="default", ids=[i["id"] for i in is_duplicates])
-                self.logger.debug(pformat(f"Deleted: {info}"))
+    #     Returns:
+    #         dict: A dictionary containing information about the insertion operation, including
+    #               the number of rows inserted and the list of inserted primary keys.
+    #     """
+    #     # fix duplicates
+    #     if remove_duplicates:
+    #         is_duplicates = self.milvus_client.query(
+    #             collection_name=collection,
+    #             filter=f"""(source == "{docs_filename}") and (content == "{content}")""",  # fmt: off
+    #         )  # nopep8
+    #         if is_duplicates:
+    #             info = self.milvus_client.delete(collection_name="default", ids=[i["id"] for i in is_duplicates])
+    #             self.logger.debug(pformat(f"Deleted: {info}"))
 
-        success = self.milvus_client.insert(
-            collection_name=collection,
-            data={
-                "source": str(docs_filename),
-                "vector": vector,
-                "content": content,
-                "file_uuid": file_uuid,
-            },
-        )
+    #     success = self.milvus_client.insert(
+    #         collection_name=collection,
+    #         data={
+    #             "source": str(docs_filename),
+    #             "vector": vector,
+    #             "content": content,
+    #             "file_uuid": file_uuid,
+    #         },
+    #     )
 
-        return success
+    #     return success
 
-    def search_similarity(
-        self,
-        question_vector: np.ndarray,
-        collection_name: str = "default",
-        limit: int = 3,
-    ) -> list[SearchSimilarityModel]:
-        """
-        Perform a similarity search on a vector database.
+    # def search_similarity(
+    #     self,
+    #     question_vector: np.ndarray,
+    #     collection_name: str = "default",
+    #     limit: int = 3,
+    # ) -> list[SearchSimilarityModel]:
+    #     """
+    #     Perform a similarity search on a vector database.
 
-        Args:
-            question_vector (np.ndarray): Vector representation of the query.
-            collection_name (str, optional): Milvus collection name. Defaults to "default".
-            limit (int, optional): Maximum number of similar documents to retrieve. Defaults to 3.
+    #     Args:
+    #         question_vector (np.ndarray): Vector representation of the query.
+    #         collection_name (str, optional): Milvus collection name. Defaults to "default".
+    #         limit (int, optional): Maximum number of similar documents to retrieve. Defaults to 3.
 
-        Returns:
-            list[SearchSimilarityModel]: List of similar documents with their metadata.
+    #     Returns:
+    #         list[SearchSimilarityModel]: List of similar documents with their metadata.
 
-        Raises:
-            ValueError: If the question vector is invalid or empty.
-            MilvusException: If there are issues with Milvus database connection or search.
-        """
-        docs_results = self.milvus_client.search(collection_name=collection_name, data=[question_vector], limit=limit)[
-            0
-        ]
-        self.logger.info("question_vector:", question_vector)
-        self.logger.info("docs_results:", docs_results)
+    #     Raises:
+    #         ValueError: If the question vector is invalid or empty.
+    #         MilvusException: If there are issues with Milvus database connection or search.
+    #     """
+    #     docs_results = self.milvus_client.search(collection_name=collection_name, data=[question_vector], limit=limit)[
+    #         0
+    #     ]
+    #     self.logger.info("question_vector:", question_vector)
+    #     self.logger.info("docs_results:", docs_results)
 
-        query_search_result = []
+    #     query_search_result = []
 
-        for _ in docs_results:
-            file_ = self.milvus_client.get(
-                collection_name="default",
-                ids=_["id"],
-            )[0]
+    #     for _ in docs_results:
+    #         file_ = self.milvus_client.get(
+    #             collection_name="default",
+    #             ids=_["id"],
+    #         )[0]
 
-            query_search_result.append(
-                SearchSimilarityModel(
-                    file_uuid=file_["file_uuid"],
-                    content=file_["content"],
-                    source=file_["source"],
-                )
-            )
+    #         query_search_result.append(
+    #             SearchSimilarityModel(
+    #                 file_uuid=file_["file_uuid"],
+    #                 content=file_["content"],
+    #                 source=file_["source"],
+    #             )
+    #         )
 
-        self.logger.debug(pformat(query_search_result))
+    #     self.logger.debug(pformat(query_search_result))
 
-        return query_search_result
+    #     return query_search_result
