@@ -3,6 +3,11 @@
 **/__pycache__/
 
 **/patent/**
+**/logs/**
 
 *.log
 test.*
+.env
+.env.example
+.env.local
+.env.staging
