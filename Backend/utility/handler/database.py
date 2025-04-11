@@ -7,7 +7,7 @@ import psycopg2
 import psycopg2.extras
 
 from utility.handler.log_handler import Logger
-from utility.model.handler.database import DatabaseConfig
+from utility.model.handler.database import DatabaseConfig, VectorDatabaseConfig
 from utility.model.handler.scraper import PatentInfo
 
 
@@ -144,7 +144,14 @@ class Database:
         self.logger.info("PostgreSQL connection closed.")
 
 
-# Example usage:
+class VectorDatabase:
+    def __init__(self, database_config: VectorDatabaseConfig) -> None:
+        ...
+
+    def _connection():
+        ...
+
+
 if __name__ == "__main__":
     # Replace with your actual connection parameters
     database_config = DatabaseConfig(
