@@ -10,3 +10,10 @@ class DatabaseConfig(BaseModel):
     password: str
     database: str
     port: int = 5432
+
+class VectorDatabaseConfig(BaseModel):
+    host: str
+    username: str
+    password: str
+    database: str
+    port: int = 5432
