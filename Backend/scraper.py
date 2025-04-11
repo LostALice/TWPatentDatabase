@@ -2,7 +2,6 @@
 
 import re
 from collections import defaultdict
-from pathlib import Path
 from urllib.request import urlopen
 
 from selenium import webdriver
@@ -12,9 +11,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 
-from utility.handler.database import Database
 from utility.handler.log_handler import Logger
-from utility.model.handler.database import DatabaseConfig
 from utility.model.handler.scraper import PatentInfo
 
 
@@ -32,7 +29,7 @@ class Scraper:
             None
 
         """
-        self.logger = Logger("./logging.log").logger
+        self.logger = Logger().get_logger()
 
         self.options = webdriver.ChromeOptions()
         self.options.binary_location = "./Driver/chromedriver-win64/chromedriver.exe"
@@ -271,20 +268,22 @@ class Scraper:
 
 
 if __name__ == "__main__":
-    scraper = Scraper()
-    database_config = DatabaseConfig(
-        host="localhost",
-        port=5432,
-        username="root",
-        password="password",
-        database="patent_database",
-    )
-    database = Database(config=database_config, debug=True)
-    total_patent, total_page = scraper.search("鞋面")
-    # for page_number in range(1, total_page):
-    for page_number in range(1, 5):
-        for url in scraper.get_patent_url(page=page_number):
-            patent_data = scraper.get_patent_information(url)
-            database.insert_patent(patent_data)
+    # scraper = Scraper()
+    # database_config = DatabaseConfig(
+    #     host="localhost",
+    #     port=5432,
+    #     username="root",
+    #     password="password",
+    #     database="patent_database",
+    # )
+    # database = Database(config=database_config, debug=True)
+    # total_patent, total_page = scraper.search("鞋面")
+    # # for page_number in range(1, total_page):
+    # for page_number in range(1, 5):
+    #     for url in scraper.get_patent_url(page=page_number):
+    #         patent_data = scraper.get_patent_information(url)
+    #         database.insert_patent(patent_data)
 
-    scraper.stop_driver()
+    # scraper.stop_driver()
+
+    ...

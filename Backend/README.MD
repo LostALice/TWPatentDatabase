@@ -11,3 +11,14 @@
 - Added frontend components such as `navbar.tsx`, `theme-switch.tsx`, and `transition.tsx`.  
 - Configured ESLint, TypeScript, and Tailwind for frontend development.  
 - Included project documentation (`README.md`, `LICENSE`).  
+
+---
+
+1. installing uv
+```python 
+pip install uv
+```
+2. sync project version
+```python 
+uv sync
+```

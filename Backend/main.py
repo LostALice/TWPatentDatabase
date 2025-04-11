@@ -5,10 +5,10 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from application import authorization, history, report, result, search
+from Backend.application import history, report, result, search
+from Backend.application.auth import authorization
 
 app = FastAPI()
-
 # development
 if os.getenv("DEBUG") is None:
     from dotenv import load_dotenv
@@ -31,7 +31,7 @@ app.add_middleware(
 
 app.include_router(
     authorization.router,
-    prefix="/api/v1",
+    prefix="/api/v1/authorization",
     tags=["Authorization", "v1"],
 )
 app.include_router(
