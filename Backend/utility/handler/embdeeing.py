@@ -9,7 +9,7 @@ from transformers import CLIPModel, CLIPProcessor
 
 class ImageEmbedding:
     def __init__(self):
-        self.logger = Logger("./logging.log").logger
+        self.logger = Logger().get_logger()
         self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
         self.model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 
@@ -27,7 +27,7 @@ class ImageEmbedding:
 
 class TextEmbedding:
     def __init__(self):
-        self.logger = Logger("./logging.log").logger
+        self.logger = Logger().get_logger()
         self.model = SentenceTransformer("nomic-ai/nomic-embed-text-v2-moe", trust_remote_code=True)
 
     def process(self, text: str) -> np.ndarray:

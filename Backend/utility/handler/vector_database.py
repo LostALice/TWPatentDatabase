@@ -50,7 +50,7 @@ class SetupMilvus:
             msg = "Missing MILVUS_DEFAULT_COLLECTION_NAME environment variable"
             raise ValueError(msg)
 
-        self.logger = Logger("./logging.log").logger
+        self.logger = Logger().get_logger()
 
         self.logger.debug("========================")
         self.logger.debug("| Start loading Milvus |")
