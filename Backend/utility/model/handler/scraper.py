@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class PatentInfo(BaseModel):
+    Title: str = ""
     ApplicationDate: int = 0
     PublicationDate: int = 0
     ApplicationNumber: str = ""

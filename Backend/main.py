@@ -5,8 +5,9 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from Backend.application import history, report, result, search
+from Backend.application import history, report, result
 from Backend.application.auth import authorization
+from Backend.application.search import search
 
 app = FastAPI()
 # development

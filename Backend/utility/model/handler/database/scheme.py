@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -50,6 +51,7 @@ class PatentScheme(BaseScheme):
 
     # SERIAL PRIMARY KEY in PostgreSQL
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column()
     application_date: Mapped[int] = mapped_column(Integer)
     publication_date: Mapped[int] = mapped_column(Integer)
     application_number: Mapped[str] = mapped_column(String(100))
@@ -64,6 +66,8 @@ class PatentScheme(BaseScheme):
     kind_codes: Mapped[str] = mapped_column(Text)
     patent_url: Mapped[str] = mapped_column(Text)
     patent_file_path: Mapped[str] = mapped_column(Text)
+
+    search_vector = mapped_column(TSVECTOR)
 
     def __repr__(self):
         return f"<Patent(id={self.id}, application_number='{self.application_number}')>"

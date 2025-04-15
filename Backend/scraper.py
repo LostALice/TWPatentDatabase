@@ -54,7 +54,9 @@ class Scraper:
         self.keyword = keyword
         self.logger.info("Start Searching: %s", keyword)
 
-        WebDriverWait(self.driver, 10).until(ec.presence_of_element_located((By.NAME, "_21_1_T")))
+        WebDriverWait(self.driver, 10).until(
+            ec.presence_of_element_located((By.NAME, "_21_1_T"))
+        )
         search_bar = self.driver.find_element(By.NAME, "_21_1_T")
         search_bar.send_keys(self.keyword)
         search_bar.send_keys(Keys.RETURN)
@@ -100,25 +102,33 @@ class Scraper:
         self.logger.info("Scraping Page: %s", page)
 
         # search
-        WebDriverWait(self.driver, 10).until(ec.presence_of_element_located((By.NAME, "_21_1_T")))
+        WebDriverWait(self.driver, 10).until(
+            ec.presence_of_element_located((By.NAME, "_21_1_T"))
+        )
         search_bar = self.driver.find_element(By.NAME, "_21_1_T")
         search_bar.send_keys(self.keyword)
         search_bar.send_keys(Keys.RETURN)
 
         # jump to page
-        WebDriverWait(self.driver, 10).until(ec.presence_of_element_located((By.ID, "jpage")))
+        WebDriverWait(self.driver, 10).until(
+            ec.presence_of_element_located((By.ID, "jpage"))
+        )
         page_bar = self.driver.find_element(By.ID, "jpage")
         page_bar.send_keys(str(page))
         page_bar.send_keys(Keys.RETURN)
 
         # wait 10 seconds for web page load
-        WebDriverWait(self.driver, 10).until(ec.presence_of_element_located((By.CLASS_NAME, "sumtr1")))
+        WebDriverWait(self.driver, 10).until(
+            ec.presence_of_element_located((By.CLASS_NAME, "sumtr1"))
+        )
         patents_list = self.driver.find_elements(By.CLASS_NAME, "sumtr1")
 
         target_url = []
         for patents_row in patents_list:
             # /html/body/form/div[1]/div/table/tbody/tr/td[3]/table/tbody/tr[4]/td/table/tbody/tr[2]/td[6]/a
-            patent_href = patents_row.find_element(By.XPATH, "./td[6]/a").get_attribute("href")
+            patent_href = patents_row.find_element(By.XPATH, "./td[6]/a").get_attribute(
+                "href"
+            )
             if patent_href:
                 target_url.append(patent_href)
 
@@ -151,8 +161,12 @@ class Scraper:
         self.logger.info("Page loaded. Finding patent information...")
         patent_info_category = self.driver.find_elements(By.CLASS_NAME, "dettb01")
         patent_info_value = self.driver.find_elements(By.CLASS_NAME, "dettb02")
+        patent_title = self.driver.find_elements(
+            By.XPATH, "/html/body/form/div[1]/div/table/tbody/tr[1]/td[1]"
+        )[0].text.replace("\n", "")
 
         # in chinese version
+        # 名稱 Title: str
         # 申請日 ApplicationDate: int
         # 公開日 PublicationDate: int
         # 申請號 ApplicationNumber: str
@@ -184,7 +198,9 @@ class Scraper:
 
         # moving cursor
         ActionChains(self.driver).move_to_element(menu).perform()
-        ActionChains(self.driver).move_to_element(pdf_element).key_down(Keys.CONTROL).click().perform()
+        ActionChains(self.driver).move_to_element(pdf_element).key_down(
+            Keys.CONTROL
+        ).click().perform()
         self.logger.debug("Opening pdf: %s", page_url)
 
         # switch window
@@ -206,7 +222,9 @@ class Scraper:
             "/html/body/form/table/tbody/tr[6]/td/input",
         )
 
-        ActionChains(self.driver).move_to_element(pdf_frameset).key_down(Keys.CONTROL).click().perform()
+        ActionChains(self.driver).move_to_element(pdf_frameset).key_down(
+            Keys.CONTROL
+        ).click().perform()
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.logger.debug("Switched windows: %s", self.driver.window_handles[-1])
 
@@ -237,6 +255,7 @@ class Scraper:
             self.logger.error("Failed to download PDF, content-type mismatch.")
 
         patent_info = PatentInfo(
+            Title=patent_title,
             ApplicationDate=int(patent_dict["申請日"]),
             PublicationDate=int(patent_dict["公開日"]),
             ApplicationNumber=patent_dict["申請號"],
@@ -268,7 +287,7 @@ class Scraper:
 
 
 if __name__ == "__main__":
-    # scraper = Scraper()
+    scraper = Scraper()
     # database_config = DatabaseConfig(
     #     host="localhost",
     #     port=5432,
@@ -277,13 +296,11 @@ if __name__ == "__main__":
     #     database="patent_database",
     # )
     # database = Database(config=database_config, debug=True)
-    # total_patent, total_page = scraper.search("鞋面")
-    # # for page_number in range(1, total_page):
-    # for page_number in range(1, 5):
-    #     for url in scraper.get_patent_url(page=page_number):
-    #         patent_data = scraper.get_patent_information(url)
+    total_patent, total_page = scraper.search("鞋面")
+    # for page_number in range(1, total_page):
+    for page_number in range(1, 5):
+        for url in scraper.get_patent_url(page=page_number):
+            patent_data = scraper.get_patent_information(url)
     #         database.insert_patent(patent_data)
 
     # scraper.stop_driver()
-
-    ...
