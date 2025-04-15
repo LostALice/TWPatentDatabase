@@ -14,7 +14,7 @@ from Backend.utility.model.application.auth.authorization import (
     NewUser,
     Role,
     User,
-)  # noqa: TC001
+)
 
 router = APIRouter()
 logger = Logger().get_logger()
