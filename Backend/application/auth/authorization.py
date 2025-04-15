@@ -124,7 +124,7 @@ async def get_role_by_id(role_id: int) -> Role:
 
 
 @router.post("/new-user/")
-async def create_new_user(new_user: NewUser) -> dict[str, int]:
+async def create_new_user(new_user: NewUser) -> User:
     """
     Creates a new user after validating input data.
 
