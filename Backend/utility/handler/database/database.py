@@ -253,6 +253,7 @@ class Database:
                 # For CREATE/INSERT/UPDATE/DELETE, just commit
                 return True
 
+DATABASE_INSTANCE = Database()
 
 if __name__ == "__main__":
     ...
