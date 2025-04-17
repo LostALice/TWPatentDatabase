@@ -4,7 +4,7 @@ from __future__ import annotations
 from passlib.context import CryptContext
 from sqlalchemy import delete, insert, select, update
 
-from Backend.utility.error.database import RoleIDNotFoundError
+from Backend.utility.error.database.database import RoleIDNotFoundError
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.application.auth.authorization import Role, User
 from Backend.utility.model.handler.database.scheme import (
@@ -13,13 +13,13 @@ from Backend.utility.model.handler.database.scheme import (
     UserScheme,
 )
 
-from .database import DATABASE_INSTANCE
+from .database import DatabaseConnection
 
 
 class AuthorizationOperation:
     def __init__(self):
         self.logger = Logger().get_logger()
-        self.database = DATABASE_INSTANCE
+        self.database = DatabaseConnection
 
     def fetch_all_role(self) -> list[Role]:
         """
@@ -65,7 +65,7 @@ class AuthorizationOperation:
 
         """
         operation = select(RoleScheme).where(RoleScheme.role_name == role_name)
-        result = DATABASE_INSTANCE.run_query(operation)
+        result = DatabaseConnection.run_query(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -93,7 +93,7 @@ class AuthorizationOperation:
 
         """
         operation = select(RoleScheme).where(RoleScheme.role_id == role_id)
-        result = DATABASE_INSTANCE.run_query(operation)
+        result = DatabaseConnection.run_query(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -116,9 +116,11 @@ class AuthorizationOperation:
             (int | None): The role ID if the role exists, otherwise None.
 
         """
-        check_exist_statement = select(RoleScheme.role_id).where(RoleScheme.role_name == role_name)
+        check_exist_statement = select(RoleScheme.role_id).where(
+            RoleScheme.role_name == role_name
+        )
 
-        is_role_exist = DATABASE_INSTANCE.run_query(check_exist_statement)
+        is_role_exist = DatabaseConnection.run_query(check_exist_statement)
         self.logger.debug(is_role_exist)
 
         if isinstance(is_role_exist, list) and is_role_exist:
@@ -141,8 +143,10 @@ class AuthorizationOperation:
         if existing_role_id:
             return existing_role_id
 
-        insert_stmt = insert(RoleScheme).values(role_name=role_name, role_description=role_description)
-        success = DATABASE_INSTANCE.run_write(insert_stmt)
+        insert_stmt = insert(RoleScheme).values(
+            role_name=role_name, role_description=role_description
+        )
+        success = DatabaseConnection.run_write(insert_stmt)
 
         if not success:
             msg = f"Failed to insert new role: {role_name}"
@@ -177,7 +181,7 @@ class AuthorizationOperation:
             UserScheme.username,
             UserScheme.email,
         ).where(UserScheme.username == user_name)
-        result = DATABASE_INSTANCE.run_query(operation)
+        result = DatabaseConnection.run_query(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -211,7 +215,7 @@ class AuthorizationOperation:
             UserScheme.username,
             UserScheme.email,
         ).where(UserScheme.user_id == user_id)
-        result = DATABASE_INSTANCE.run_query(operation)
+        result = DatabaseConnection.run_query(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -224,7 +228,9 @@ class AuthorizationOperation:
             role_name=result[0]["role_name"],
         )
 
-    def create_new_user(self, role_id: int, user_name: str, hashed_password: str, email: str = "") -> int | None:
+    def create_new_user(
+        self, role_id: int, user_name: str, hashed_password: str, email: str = ""
+    ) -> int | None:
         """
         Creates a new user in the database and returns the newly assigned user ID.
 
@@ -253,10 +259,46 @@ class AuthorizationOperation:
             .returning(UserScheme.user_id)
         )
 
-        result = DATABASE_INSTANCE.transaction(operation)
+        result = DatabaseConnection.transaction(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
             return None
 
         return result[0]["user_id"]
+
+    def create_default_role_and_user(self, hashed_password: str) -> list[User]:
+        admin_role_id = self.create_new_role("ADMIN", "ADMIN")
+        user_role_id = self.create_new_role("USER", "USER")
+        self.logger.info(admin_role_id)
+        self.logger.info(user_role_id)
+
+        admin_user_id = self.create_new_user(
+            role_id=admin_role_id,
+            user_name="admin",
+            hashed_password=hashed_password,
+            email="asd@asd.com",
+        )
+        user_user_id = self.create_new_user(
+            role_id=user_role_id,
+            user_name="user",
+            hashed_password=hashed_password,
+            email="asd@sad.com",
+        )
+        self.logger.info(admin_user_id)
+        self.logger.info(user_user_id)
+
+        if admin_user_id is None:
+            return []
+        if user_user_id is None:
+            return []
+
+        admin = self.fetch_user_by_id(user_id=admin_user_id)
+        user = self.fetch_user_by_id(user_id=user_user_id)
+
+        if admin is None:
+            return []
+        if user is None:
+            return []
+
+        return [admin, user]

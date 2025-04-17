@@ -40,6 +40,7 @@ class LoginScheme(BaseScheme):
     login_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"))
     refresh_token: Mapped[str] = mapped_column(String(512), nullable=False)
+    access_token: Mapped[str] = mapped_column(String(512), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime)
 

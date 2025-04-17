@@ -26,3 +26,7 @@ class Role(BaseModel):
     role_id: int
     role_name: str
     role_description: str
+
+class UserLoginCredential(BaseModel):
+    user_name: str
+    hashed_password: str

@@ -10,16 +10,19 @@ from passlib.context import CryptContext
 from Backend.utility.handler.database.authorization import AuthorizationOperation
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.application.auth.authorization import (
-    NewRole,
-    NewUser,
-    Role,
-    User,
+    NewRole,  # noqa: TC001
+    NewUser,  # noqa: TC001
+    Role,  # noqa: TC001
+    User,  # noqa: TC001
 )
 
 router = APIRouter()
 logger = Logger().get_logger()
 
-if getenv("DEBUG") is None:
+# development
+GLOBAL_DEBUG_MODE = getenv("DEBUG")
+
+if GLOBAL_DEBUG_MODE is None or GLOBAL_DEBUG_MODE == "True":
     from dotenv import load_dotenv
 
     load_dotenv("./.env")
@@ -28,7 +31,7 @@ database_client = AuthorizationOperation()
 
 
 @router.post("/login/")
-async def search():
+async def login():
     return "login"
 
 

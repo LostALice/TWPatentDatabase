@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateTable
 
 from Backend.utility.error.common import EnvironmentalVariableNotSetError
-from Backend.utility.error.database import IndexCreationError
+from Backend.utility.error.database.database import IndexCreationError
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.handler.database.database import DatabaseConfig
 from Backend.utility.model.handler.database.scheme import BaseScheme
@@ -21,7 +21,11 @@ if TYPE_CHECKING:
     from sqlalchemy.engine.row import RowMapping
     from sqlalchemy.sql import Delete, Executable, Insert, Select, Update
 
-if getenv("DEBUG") is None:
+# development
+GLOBAL_DEBUG_MODE = getenv("DEBUG")
+logger = Logger().get_logger()
+logger.info("Global Debug Mode: %s", GLOBAL_DEBUG_MODE)
+if GLOBAL_DEBUG_MODE is None or GLOBAL_DEBUG_MODE == "True":
     from dotenv import load_dotenv
 
     load_dotenv("./.env")
@@ -253,7 +257,8 @@ class Database:
                 # For CREATE/INSERT/UPDATE/DELETE, just commit
                 return True
 
-DATABASE_INSTANCE = Database()
+
+DatabaseConnection = Database()
 
 if __name__ == "__main__":
     ...

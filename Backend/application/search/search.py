@@ -1,7 +1,8 @@
 # Code by AkinoAlice@TyrantRey
 
-from Backend.utility.handler.database.search import SearchEngineOperation
 from fastapi import APIRouter
+
+from Backend.utility.handler.database.search import SearchEngineOperation
 
 router = APIRouter()
 

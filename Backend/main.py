@@ -6,13 +6,21 @@ import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from Backend.application import history, report, result
 from Backend.application.auth import authorization
+from Backend.application.history import history
+from Backend.application.report import report
+from Backend.application.result import result
 from Backend.application.search import search
+from Backend.utility.handler.log_handler import Logger
 
 app = FastAPI()
+
 # development
-if os.getenv("DEBUG") is None:
+GLOBAL_DEBUG_MODE = os.getenv("DEBUG")
+logger = Logger().get_logger()
+logger.info("Global Debug Mode: %s", GLOBAL_DEBUG_MODE)
+
+if GLOBAL_DEBUG_MODE is None or GLOBAL_DEBUG_MODE == "True":
     from dotenv import load_dotenv
 
     load_dotenv("./.env")
@@ -65,3 +73,12 @@ async def add_process_time_header(request: Request, call_next):
     process_time = time.perf_counter() - start_time
     response.headers["X-Process-Time"] = str(process_time)
     return response
+
+
+if GLOBAL_DEBUG_MODE == "True":
+    from Backend.application.dev import dev
+    app.include_router(
+        dev.router,
+        prefix="/api/v1/dev",
+        tags=["Test", "v1"],
+    )
