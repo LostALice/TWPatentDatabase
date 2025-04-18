@@ -18,7 +18,7 @@ router = APIRouter()
 
 # development
 GLOBAL_DEBUG_MODE = getenv("DEBUG")
-
+logger = Logger().get_logger()
 if GLOBAL_DEBUG_MODE is None or GLOBAL_DEBUG_MODE == "True":
     from dotenv import load_dotenv
 

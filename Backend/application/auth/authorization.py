@@ -10,11 +10,14 @@ from passlib.context import CryptContext
 from Backend.utility.handler.database.authorization import AuthorizationOperation
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.application.auth.authorization import (
-    NewRole,  # noqa: TC001
-    NewUser,  # noqa: TC001
-    Role,  # noqa: TC001
-    User,  # noqa: TC001
+    LoginCertificate,
+    NewRole,
+    NewUser,
+    Role,
+    User,
+    UserLoginCredential,
 )
+from Backend.utility.error.common import EnvironmentalVariableNotSetError
 
 router = APIRouter()
 logger = Logger().get_logger()
@@ -31,8 +34,40 @@ database_client = AuthorizationOperation()
 
 
 @router.post("/login/")
-async def login():
-    return "login"
+async def login(login_cred: UserLoginCredential) -> LoginCertificate:
+    user_name = login_cred.user_name
+    hashed_password = login_cred.hashed_password
+
+    is_user_exist = database_client.fetch_user_by_name(user_name)
+    if is_user_exist is None:
+        raise HTTPException(401, "Invalid Username or password")
+
+    is_password_invalid = database_client.verify_password(
+        user_id=is_user_exist.user_id, hashed_password=hashed_password
+    )
+
+    if not is_password_invalid:
+        raise HTTPException(401, "Invalid Username or password")
+
+    jwt_secret = getenv("JWT_SECRET")
+    jwt_algorithm = getenv("JWT_ALGORITHM")
+    jwt_access_token_expire_time = getenv("JWT_ACCESS_TOKEN_EXPIRE_TIME")
+    jwt_refresh_token_expire_time = getenv("JWT_REFRESH_TOKEN_EXPIRE_TIME")
+
+    if jwt_secret is None:
+        msg = "JWT_SECRET"
+        raise EnvironmentalVariableNotSetError(msg)
+    if jwt_algorithm is None:
+        msg = "JWT_ALGORITHM"
+        raise EnvironmentalVariableNotSetError(msg)
+    if jwt_access_token_expire_time is None:
+        msg = "JWT_ACCESS_TOKEN_EXPIRE_TIME"
+        raise EnvironmentalVariableNotSetError(msg)
+    if jwt_refresh_token_expire_time is None:
+        msg = "JWT_REFRESH_TOKEN_EXPIRE_TIME"
+        raise EnvironmentalVariableNotSetError(msg)
+
+    return is_password_invalid
 
 
 @router.post("/new-role/", response_model=int)
@@ -69,9 +104,7 @@ async def create_new_role(new_role: NewRole) -> Role:
         raise HTTPException(status_code=400, detail="Role name already exists")
 
     # Create the new role and return its ID
-    role_id = database_client.create_new_role(
-        role_name=new_role.role_name, role_description=new_role.role_description
-    )
+    role_id = database_client.create_new_role(role_name=new_role.role_name, role_description=new_role.role_description)
 
     role = database_client.fetch_role_by_id(role_id)
 
@@ -152,9 +185,7 @@ async def create_new_user(new_user: NewUser) -> User:
         logger.critical("Invalid Username: %s", new_user.user_name)
         raise HTTPException(status_code=400, detail="Invalid Username")
 
-    is_valid_email = re.search(
-        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", new_user.email
-    )
+    is_valid_email = re.search(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", new_user.email)
     if not is_valid_email:
         logger.critical("Invalid Email: %s", new_user.email)
         raise HTTPException(status_code=400, detail="Invalid Email")

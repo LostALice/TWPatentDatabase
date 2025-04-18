@@ -56,20 +56,7 @@ def parse_duration(duration_str: str) -> datetime.timedelta:
     raise InvalidUnsupportedJWTExpireTimeError
 
 
-async def verify_jwt_token(token: str = Header(None)) -> JWTPayload:
-    """
-    Verify the JWT token and extract the payload.
-
-    Args:
-        token (str): The JWT token extracted from the Authorization header.
-
-    Returns:
-        JWTPayload: The decoded JWT payload containing user information.
-
-    Raises:
-        HTTPException: If the token is invalid, expired, or not found in the database.
-
-    """
+def check_jwt_environment_variable() -> bool:
     jwt_secret = str(os.getenv("JWT_SECRET"))
     jwt_algorithm = os.getenv("JWT_ALGORITHM")
 
@@ -99,16 +86,31 @@ async def verify_jwt_token(token: str = Header(None)) -> JWTPayload:
     ]:
         raise InvalidAlgorithmError(jwt_algorithm)
 
-    # Decode the JWT token
+    return True
+
+
+async def verify_jwt_token(token: str = Header(None)) -> JWTPayload:
+    """
+    Verify the JWT token and extract the payload.
+
+    Args:
+        token (str): The JWT token extracted from the Authorization header.
+
+    Returns:
+        JWTPayload: The decoded JWT payload containing user information.
+
+    Raises:
+        HTTPException: If the token is invalid, expired, or not found in the database.
+
+    """
+    check_jwt_environment_variable()
 
     try:
         payload = jwt.decode(token, jwt_secret, algorithms=jwt_algorithm)
     except jwt.PyJWTError as e:
         _error = f"JWT verification error: {e}"
         logger.exception(_error)
-        raise HTTPException(
-            status_code=401, detail="Invalid authentication token"
-        ) from e
+        raise HTTPException(status_code=401, detail="Invalid authentication token") from e
     except Exception as e:
         _error = f"Unexpected error during token verification: {e}"
         logger.exception(_error)
@@ -129,9 +131,7 @@ async def verify_jwt_token(token: str = Header(None)) -> JWTPayload:
     return JWTPayload(**payload)
 
 
-async def require_role(
-    required_roles: list[str], payload: JWTPayload = Depends(verify_jwt_token)
-) -> JWTPayload:
+async def require_role(required_roles: list[str], payload: JWTPayload = Depends(verify_jwt_token)) -> JWTPayload:
     """
     Check if the authenticated user has one of the required roles.
 

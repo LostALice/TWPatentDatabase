@@ -1,14 +1,12 @@
 # Code by AkinoAlice@TyrantRey
 from __future__ import annotations
 
-from passlib.context import CryptContext
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import insert, select
 
 from Backend.utility.error.database.database import RoleIDNotFoundError
 from Backend.utility.handler.log_handler import Logger
-from Backend.utility.model.application.auth.authorization import Role, User
+from Backend.utility.model.application.auth.authorization import LoginCertificate, Role, User
 from Backend.utility.model.handler.database.scheme import (
-    PatentScheme,
     RoleScheme,
     UserScheme,
 )
@@ -65,7 +63,7 @@ class AuthorizationOperation:
 
         """
         operation = select(RoleScheme).where(RoleScheme.role_name == role_name)
-        result = DatabaseConnection.run_query(operation)
+        result = self.database.run_query(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -93,7 +91,7 @@ class AuthorizationOperation:
 
         """
         operation = select(RoleScheme).where(RoleScheme.role_id == role_id)
-        result = DatabaseConnection.run_query(operation)
+        result = self.database.run_query(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -116,11 +114,9 @@ class AuthorizationOperation:
             (int | None): The role ID if the role exists, otherwise None.
 
         """
-        check_exist_statement = select(RoleScheme.role_id).where(
-            RoleScheme.role_name == role_name
-        )
+        check_exist_statement = select(RoleScheme.role_id).where(RoleScheme.role_name == role_name)
 
-        is_role_exist = DatabaseConnection.run_query(check_exist_statement)
+        is_role_exist = self.database.run_query(check_exist_statement)
         self.logger.debug(is_role_exist)
 
         if isinstance(is_role_exist, list) and is_role_exist:
@@ -143,10 +139,8 @@ class AuthorizationOperation:
         if existing_role_id:
             return existing_role_id
 
-        insert_stmt = insert(RoleScheme).values(
-            role_name=role_name, role_description=role_description
-        )
-        success = DatabaseConnection.run_write(insert_stmt)
+        insert_stmt = insert(RoleScheme).values(role_name=role_name, role_description=role_description)
+        success = self.database.run_write(insert_stmt)
 
         if not success:
             msg = f"Failed to insert new role: {role_name}"
@@ -181,7 +175,7 @@ class AuthorizationOperation:
             UserScheme.username,
             UserScheme.email,
         ).where(UserScheme.username == user_name)
-        result = DatabaseConnection.run_query(operation)
+        result = self.database.run_query(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -215,7 +209,7 @@ class AuthorizationOperation:
             UserScheme.username,
             UserScheme.email,
         ).where(UserScheme.user_id == user_id)
-        result = DatabaseConnection.run_query(operation)
+        result = self.database.run_query(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -228,9 +222,7 @@ class AuthorizationOperation:
             role_name=result[0]["role_name"],
         )
 
-    def create_new_user(
-        self, role_id: int, user_name: str, hashed_password: str, email: str = ""
-    ) -> int | None:
+    def create_new_user(self, role_id: int, user_name: str, hashed_password: str, email: str = "") -> int | None:
         """
         Creates a new user in the database and returns the newly assigned user ID.
 
@@ -259,7 +251,7 @@ class AuthorizationOperation:
             .returning(UserScheme.user_id)
         )
 
-        result = DatabaseConnection.transaction(operation)
+        result = self.database.transaction(operation)
         self.logger.info(result)
 
         if isinstance(result, bool) or result == []:
@@ -302,3 +294,14 @@ class AuthorizationOperation:
             return []
 
         return [admin, user]
+
+    def verify_password(self, user_id: int, hashed_password: str) -> bool:
+        operation = select(UserScheme).where(
+            UserScheme.user_id == user_id,
+            UserScheme.hashed_password == hashed_password,
+        )
+
+        result = self.database.run_query(operation)
+        self.logger.info(result)
+
+        return result != []

@@ -19,8 +19,7 @@ class Logger:
     def __init__(
         self,
         log_dir: str = "./logs",
-        log_filename: str = __file__,
-        fmt: str = "%(asctime)s - %(pathname)s:%(lineno)d - %(levelname)s: %(message)s",
+        fmt: str = "%(asctime)s %(pathname)s:%(lineno)d\n%(levelname)s: %(message)s",
         level: int = logging.DEBUG,
     ) -> None:
         """
@@ -56,6 +55,7 @@ class Logger:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(level)
 
+        # formatter = CustomFormatter(fmt)
         formatter = logging.Formatter(fmt)
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)

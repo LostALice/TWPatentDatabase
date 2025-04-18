@@ -35,13 +35,8 @@ class Database:
     def __init__(self) -> None:
         self.logger = Logger().get_logger()
 
-        self.logger.info("==========================")
         self.logger.info("| Start Loading Database |")
-        self.logger.info("==========================")
-
-        self.logger.info("========================")
         self.logger.info("| Getting Database Env |")
-        self.logger.info("========================")
 
         self._POSTGRESQL_DEBUG = getenv("POSTGRESQL_DEBUG")
 
@@ -70,9 +65,7 @@ class Database:
             msg = "POSTGRESQL_PORT"
             raise EnvironmentalVariableNotSetError(msg)
 
-        self.logger.info("==================================")
         self.logger.info("| Setting up Database connection |")
-        self.logger.info("==================================")
 
         self.config = DatabaseConfig(
             host=self._POSTGRESQL_HOST,
@@ -87,15 +80,13 @@ class Database:
         self.engine = create_engine(self.DATABASE_URL, echo=True)
         self.session = sessionmaker(bind=self.engine)
 
-        if self._POSTGRESQL_DEBUG:
+        if self._POSTGRESQL_DEBUG == "T":
             self.logger.warning("Deleting Exist Database")
             self.__clear_database()
 
         self.__initialize_database()
 
-        self.logger.info("===================")
         self.logger.info("| Loaded Database |")
-        self.logger.info("===================")
 
     def __initialize_database(self) -> None:
         """

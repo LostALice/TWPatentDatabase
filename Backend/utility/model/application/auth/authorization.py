@@ -27,6 +27,12 @@ class Role(BaseModel):
     role_name: str
     role_description: str
 
+
 class UserLoginCredential(BaseModel):
     user_name: str
     hashed_password: str
+
+
+class LoginCertificate(User):
+    access_token: str
+    refresh_token: str
