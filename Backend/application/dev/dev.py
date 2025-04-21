@@ -29,6 +29,6 @@ authorization_client = AuthorizationOperation()
 
 @router.get("/dev/create-default-user/")
 async def create_default_user() -> list[User]:
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__default_rounds=12)
     hashed_password = pwd_context.hash("example_password")
     return authorization_client.create_default_role_and_user(hashed_password)

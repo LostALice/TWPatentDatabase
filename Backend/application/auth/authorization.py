@@ -1,12 +1,20 @@
 # Code by AkinoAlice@TyrantRey
+
 from __future__ import annotations
 
 import re
 from os import getenv
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
-from passlib.context import CryptContext
+from fastapi import APIRouter, Depends, HTTPException
+from passlib.context import CryptContext  # type: ignore[import-untyped]
 
+from Backend.application.dependency.dependency import (
+    generate_jwt_token,
+    get_environment_variable,
+    parse_duration,
+    require_root,
+)
 from Backend.utility.handler.database.authorization import AuthorizationOperation
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.application.auth.authorization import (
@@ -17,7 +25,7 @@ from Backend.utility.model.application.auth.authorization import (
     User,
     UserLoginCredential,
 )
-from Backend.utility.error.common import EnvironmentalVariableNotSetError
+from Backend.utility.model.application.dependency.dependency import AccessToken
 
 router = APIRouter()
 logger = Logger().get_logger()
@@ -35,39 +43,40 @@ database_client = AuthorizationOperation()
 
 @router.post("/login/")
 async def login(login_cred: UserLoginCredential) -> LoginCertificate:
-    user_name = login_cred.user_name
-    hashed_password = login_cred.hashed_password
-
-    is_user_exist = database_client.fetch_user_by_name(user_name)
-    if is_user_exist is None:
+    user = database_client.fetch_user_by_name(login_cred.user_name)
+    if user is None:
         raise HTTPException(401, "Invalid Username or password")
 
-    is_password_invalid = database_client.verify_password(
-        user_id=is_user_exist.user_id, hashed_password=hashed_password
+    stored_password = database_client.fetch_user_hashed_password(user_id=user.user_id)
+
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    is_password_match = pwd_context.verify(login_cred.hashed_password, stored_password)
+    logger.info(is_password_match)
+
+    if not is_password_match:
+        raise HTTPException(401, "Invalid Username or password")
+
+    login_certificate = generate_jwt_token(user)
+
+    access_token_expire_time = get_environment_variable("JWT_ACCESS_TOKEN_EXPIRE_TIME", str)[
+        "JWT_ACCESS_TOKEN_EXPIRE_TIME"
+    ]
+    refresh_token_expire_time = get_environment_variable("JWT_REFRESH_TOKEN_EXPIRE_TIME", str)[
+        "JWT_REFRESH_TOKEN_EXPIRE_TIME"
+    ]
+
+    access_token_expire_time = parse_duration(access_token_expire_time)
+    refresh_token_expire_time = parse_duration(refresh_token_expire_time)
+
+    database_client.login(
+        user_id=login_certificate.user_id,
+        access_token=login_certificate.access_token,
+        refresh_token=login_certificate.refresh_token,
+        access_token_expires_ttl=access_token_expire_time,
+        refresh_token_expires_ttl=refresh_token_expire_time,
     )
 
-    if not is_password_invalid:
-        raise HTTPException(401, "Invalid Username or password")
-
-    jwt_secret = getenv("JWT_SECRET")
-    jwt_algorithm = getenv("JWT_ALGORITHM")
-    jwt_access_token_expire_time = getenv("JWT_ACCESS_TOKEN_EXPIRE_TIME")
-    jwt_refresh_token_expire_time = getenv("JWT_REFRESH_TOKEN_EXPIRE_TIME")
-
-    if jwt_secret is None:
-        msg = "JWT_SECRET"
-        raise EnvironmentalVariableNotSetError(msg)
-    if jwt_algorithm is None:
-        msg = "JWT_ALGORITHM"
-        raise EnvironmentalVariableNotSetError(msg)
-    if jwt_access_token_expire_time is None:
-        msg = "JWT_ACCESS_TOKEN_EXPIRE_TIME"
-        raise EnvironmentalVariableNotSetError(msg)
-    if jwt_refresh_token_expire_time is None:
-        msg = "JWT_REFRESH_TOKEN_EXPIRE_TIME"
-        raise EnvironmentalVariableNotSetError(msg)
-
-    return is_password_invalid
+    return login_certificate
 
 
 @router.post("/new-role/", response_model=int)
@@ -226,12 +235,13 @@ async def create_new_user(new_user: NewUser) -> User:
 
 
 @router.get("/get-user/name/{user_name}")
-async def get_user_by_name(user_name: str) -> User:
+async def get_user_by_name(user_name: str, payload: Annotated[AccessToken, Depends(require_root)]) -> User:
     """
     Retrieves a user by their username.
 
     Args:
         user_name (str): The username to look up.
+        payload (AccessToken): The JWT payload from the verify_jwt_token dependency.
 
     Returns:
         User: The matching User object.
@@ -241,6 +251,7 @@ async def get_user_by_name(user_name: str) -> User:
 
     """
     user = database_client.fetch_user_by_name(user_name)
+    logger.debug(payload)
 
     if user is None:
         raise HTTPException(status_code=404, detail="User Not Found")
@@ -269,3 +280,9 @@ async def get_user_by_id(user_id: int) -> User:
         raise HTTPException(status_code=404, detail="User Not Found")
 
     return user
+
+
+@router.post("/refresh-token")
+async def refresh_access_token(refresh_token: str) -> str:
+    logger.info(refresh_token)
+    return refresh_token

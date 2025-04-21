@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateTable
 
-from Backend.utility.error.common import EnvironmentalVariableNotSetError
+from Backend.utility.error.common import EnvironmentVariableNotSetError
 from Backend.utility.error.database.database import IndexCreationError
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.handler.database.database import DatabaseConfig
@@ -48,22 +48,22 @@ class Database:
 
         if self._POSTGRESQL_DEBUG is None:
             msg = "POSTGRESQL_DEBUG"
-            raise EnvironmentalVariableNotSetError(msg)
+            raise EnvironmentVariableNotSetError(msg)
         if self._POSTGRESQL_HOST is None:
             msg = "POSTGRESQL_HOST"
-            raise EnvironmentalVariableNotSetError(msg)
+            raise EnvironmentVariableNotSetError(msg)
         if self._POSTGRESQL_USERNAME is None:
             msg = "POSTGRESQL_USERNAME"
-            raise EnvironmentalVariableNotSetError(msg)
+            raise EnvironmentVariableNotSetError(msg)
         if self._POSTGRESQL_PASSWORD is None:
             msg = "POSTGRESQL_PASSWORD"
-            raise EnvironmentalVariableNotSetError(msg)
+            raise EnvironmentVariableNotSetError(msg)
         if self._POSTGRESQL_DATABASE is None:
             msg = "POSTGRESQL_DATABASE"
-            raise EnvironmentalVariableNotSetError(msg)
+            raise EnvironmentVariableNotSetError(msg)
         if self._POSTGRESQL_PORT is None:
             msg = "POSTGRESQL_PORT"
-            raise EnvironmentalVariableNotSetError(msg)
+            raise EnvironmentVariableNotSetError(msg)
 
         self.logger.info("| Setting up Database connection |")
 
@@ -80,11 +80,11 @@ class Database:
         self.engine = create_engine(self.DATABASE_URL, echo=True)
         self.session = sessionmaker(bind=self.engine)
 
-        if self._POSTGRESQL_DEBUG == "T":
+        if self._POSTGRESQL_DEBUG == "True":
             self.logger.warning("Deleting Exist Database")
             self.__clear_database()
+            self.__initialize_database()
 
-        self.__initialize_database()
 
         self.logger.info("| Loaded Database |")
 
@@ -170,6 +170,7 @@ class Database:
         with self.session() as session:
             try:
                 result = session.execute(query)
+                session.commit()
                 return result.mappings().all()
             except Exception as e:
                 self.logger.critical("Query failed: %s", e)

@@ -1,15 +1,15 @@
 # Code by AkinoAlice@TyrantRey
+
 from __future__ import annotations
+
+import datetime
 
 from sqlalchemy import insert, select
 
 from Backend.utility.error.database.database import RoleIDNotFoundError
 from Backend.utility.handler.log_handler import Logger
-from Backend.utility.model.application.auth.authorization import LoginCertificate, Role, User
-from Backend.utility.model.handler.database.scheme import (
-    RoleScheme,
-    UserScheme,
-)
+from Backend.utility.model.application.auth.authorization import Role, User
+from Backend.utility.model.handler.database.scheme import LoginScheme, RoleScheme, UserScheme
 
 from .database import DatabaseConnection
 
@@ -295,13 +295,31 @@ class AuthorizationOperation:
 
         return [admin, user]
 
-    def verify_password(self, user_id: int, hashed_password: str) -> bool:
-        operation = select(UserScheme).where(
+    def fetch_user_hashed_password(self, user_id: int) -> str:
+        operation = select(UserScheme.hashed_password).where(
             UserScheme.user_id == user_id,
-            UserScheme.hashed_password == hashed_password,
         )
 
         result = self.database.run_query(operation)
         self.logger.info(result)
 
-        return result != []
+        return result[0]["hashed_password"] if result else ""
+
+    def login(
+        self,
+        user_id: int,
+        access_token: str,
+        refresh_token: str,
+        access_token_expires_ttl: datetime.timedelta,
+        refresh_token_expires_ttl: datetime.timedelta,
+    ) -> bool:
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+        operation = insert(LoginScheme).values(
+            user_id=user_id,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            access_token_expires_at=current_time + access_token_expires_ttl,
+            refresh_token_expires_at=current_time + refresh_token_expires_ttl,
+        )
+        result = self.database.run_query(operation)
+        return result == []
