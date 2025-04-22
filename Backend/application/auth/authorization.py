@@ -107,7 +107,9 @@ async def logout(user_id: int) -> bool:
 
 
 @router.post("/new-role/")
-async def create_new_role(new_role: NewRole) -> Role:
+async def create_new_role(
+    new_role: NewRole, payload: Annotated[AccessToken, Depends(require_root)]
+) -> Role:
     """
     Creates a new role after validating the role name for invalid characters and duplicates.
 
@@ -117,11 +119,13 @@ async def create_new_role(new_role: NewRole) -> Role:
 
     Args:
         new_role (NewRole): The role name and optional description.
+        payload (AccessToken): The JWT payload from the verify_jwt_token dependency.
 
     Returns:
         Role: The role scheme.
 
     """
+    logger.info(payload)
     new_role.role_name = new_role.role_name.lower()
     logger.info(new_role)
 
@@ -198,7 +202,9 @@ async def get_role_by_id(role_id: int) -> Role:
 
 
 @router.post("/new-user/")
-async def create_new_user(new_user: NewUser) -> User:
+async def create_new_user(
+    new_user: NewUser, payload: Annotated[AccessToken, Depends(require_root)]
+) -> User:
     """
     Creates a new user after validating input data.
 
@@ -210,6 +216,7 @@ async def create_new_user(new_user: NewUser) -> User:
 
     Args:
         new_user (NewUser): The new user's registration data.
+        payload (AccessToken): The JWT payload from the verify_jwt_token dependency.
 
     Returns:
         dict[str, int]: A dictionary containing the new user's ID.
@@ -218,6 +225,8 @@ async def create_new_user(new_user: NewUser) -> User:
         HTTPException: On invalid input or database error.
 
     """
+    logger.info(payload)
+
     is_invalid_characters = bool(re.search(r"[^a-zA-Z0-9]", new_user.user_name))
     if is_invalid_characters:
         logger.critical("Invalid Username: %s", new_user.user_name)
@@ -266,15 +275,12 @@ async def create_new_user(new_user: NewUser) -> User:
 
 
 @router.get("/get-user/name/{user_name}")
-async def get_user_by_name(
-    user_name: str, payload: Annotated[AccessToken, Depends(require_root)]
-) -> User:
+async def get_user_by_name(user_name: str) -> User:
     """
     Retrieves a user by their username.
 
     Args:
         user_name (str): The username to look up.
-        payload (AccessToken): The JWT payload from the verify_jwt_token dependency.
 
     Returns:
         User: The matching User object.
@@ -284,7 +290,6 @@ async def get_user_by_name(
 
     """
     user = database_client.fetch_user_by_name(user_name)
-    logger.debug(payload)
 
     if user is None:
         raise HTTPException(status_code=404, detail="User Not Found")
