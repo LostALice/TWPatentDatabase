@@ -1,11 +1,14 @@
 # Code by AkinoAlice@TyrantRey
 
-from fastapi import APIRouter
+from datetime import datetime
 
-router = APIRouter()
+from pydantic import BaseModel
 
 
-@router.get("/history/")
-async def history():
-    """Get recent history"""
-    return "history"
+class Record(BaseModel):
+    user_id: int
+    patent_name: str
+
+
+class HistoryRecord(Record):
+    search_time: datetime
