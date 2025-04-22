@@ -100,17 +100,6 @@ def _coerce(raw: str, expected_type: type) -> Any:
 
     Raises:
         InvalidTypingError: If the raw value cannot be coerced to the expected type.
-
-    Examples:
-        >>> _coerce("true", bool)
-        True
-        >>> _coerce("1,2,3", list)
-        ['1', '2', '3']
-        >>> _coerce("[1, 2, 3]", list)
-        [1, 2, 3]
-        >>> _coerce("42", int)
-        42
-
     """
     if expected_type is bool:
         lowered = raw.lower()
@@ -222,6 +211,20 @@ def get_jwt_environment_variable() -> JWTEnvironmentalSetup:
 
 
 def _check_revocation(payload: dict, token: str, token_type: TokenType) -> None:
+    """
+    Check if the given token has been revoked for the user.
+
+    This function verifies the token's validity against the database. If the token
+    has been revoked (i.e., is no longer valid for the user), it raises an HTTP 401 error.
+
+    Args:
+        payload (dict): The decoded JWT payload containing at least the 'sub' (user ID).
+        token (str): The JWT token string to verify.
+        token_type (TokenType): The type of token being verified (e.g., access or refresh).
+
+    Raises:
+        HTTPException: 401 Unauthorized if the token has been revoked or is invalid.
+    """
     logger.debug(payload)
     if not database_client.verify_token(
         user_id=int(payload["sub"]), token=token or "", token_type=token_type
@@ -233,6 +236,31 @@ async def verify_jwt_token(
     access_token: str = Header(default=None),
     refresh_token: str = Header(default=None),
 ) -> AccessToken:
+    """
+    Verify the validity of the provided JWT access token.
+
+    This function checks if the access token is present and valid. If it has
+    expired or is otherwise invalid, and a refresh token is provided, the function
+    checks if the refresh token is valid and informs the client to refresh the token.
+
+    Args:
+        access_token (str): JWT access token, expected in the request headers.
+        refresh_token (str): Optional JWT refresh token, also expected in headers.
+
+    Returns:
+        AccessToken: The decoded payload of the access token if it is valid.
+
+    Raises:
+        HTTPException (401):
+            - If the access token is missing.
+            - If the access token is invalid or expired and no valid refresh token is provided.
+            - If both tokens are invalid or the refresh token is not used properly.
+            - If the refresh token is valid, prompts the client to refresh via the designated endpoint.
+
+    Notes:
+        - Designed to be used as a dependency in FastAPI routes.
+        - Refreshing does not occur automatically; the client must call `/auth/refresh-token`.
+    """
     if access_token is None:
         raise HTTPException(status_code=401, detail="Missing access token")
 
@@ -353,52 +381,32 @@ async def verify_refresh_token(refresh_token: str) -> RefreshToken:
             status_code=401, detail="Invalid refresh token, please re-login"
         ) from e
 
-    # try:
-    #     refresh_payload = jwt.decode(refresh_token, jwt_setup.secret, algorithms=jwt_setup.algorithm)
-    #     if refresh_payload.get("typ") != "refresh":
-    #         raise HTTPException(401, "Invalid refresh token")
-    #     _check_revocation(refresh_payload, refresh_token, "refresh")
-    #     # Sanity-check subject matches
-    #     if refresh_payload["sub"] != jwt.decode(access_token, options={"verify_signature": False})["sub"]:
-    #         raise HTTPException(401, "Token pair mismatch")
-
-    # except ExpiredSignatureError as e:
-    #     logger.critical("Refresh token check failed ExpiredSignatureError: %s", e)
-    #     raise HTTPException(401, "Refresh token expired") from e
-
-    # except InvalidSignatureError as e:
-    #     logger.critical("Refresh token check failed InvalidSignatureError: %s", e)
-    #     raise HTTPException(401, "Refresh token expired") from e
-
-    # except PyJWTError as e:
-    #     logger.warning("Refresh-token error: %s", e)
-    #     raise HTTPException(401, "Invalid refresh token") from e
-
-    # return False
-    # logger.info(refresh_payload)
-    # user_id = refresh_payload["sub"]
-
-    # current_time = datetime.datetime.now(tz=datetime.timezone.utc)
-    # expire_time = current_time + jwt_setup.access_token_expire_time
-
-    # new_access_payload = {
-    #     **refresh_payload,  # sub, etc.
-    #     "typ": "access",
-    #     "iat": current_time,
-    #     "exp": expire_time,
-    # }
-    # new_access_token = jwt.encode(new_access_payload, jwt_setup.secret, algorithm=jwt_setup.algorithm)
-    # database_client.store_token(
-    #     user_id=user_id, token=new_access_token, token_type="access", iat=current_time, exp=expire_time
-    # )
-
-    # response: Response = Response()
-    # response.headers["X-New-Access-Token"] = new_access_token
-
-    # return AccessToken(**new_access_payload)
-
 
 def generate_jwt_token(user: User) -> LoginCertificate:
+    """
+    Generate a pair of JWT tokens (access and refresh) for the given user.
+
+    This function creates a signed JWT access token and refresh token using the
+    user's information and environment-configured secret and algorithm. The
+    access token includes detailed user claims and a short expiration time,
+    while the refresh token has a longer lifespan and fewer claims.
+
+    Args:
+        user (User): A user object containing user_id, user_name, email, and role_name.
+
+    Returns:
+        LoginCertificate: An object containing the user's info along with the
+        generated access and refresh tokens.
+
+    Notes:
+        - The "sub" (subject) claim in the JWT must be a string according to JWT standards.
+        - The issued time (`iat`) and expiration (`exp`) are in UTC timezone.
+        - Token expiry durations are pulled from the JWT environment setup.
+
+    Raises:
+        None directly, but improper environment variables or encoding errors may raise exceptions.
+
+    """
     jwt_setup = get_jwt_environment_variable()
 
     issued_at = datetime.datetime.now(tz=datetime.timezone.utc)
