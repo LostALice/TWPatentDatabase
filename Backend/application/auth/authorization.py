@@ -58,12 +58,12 @@ async def login(login_cred: UserLoginCredential) -> LoginCertificate:
 
     login_certificate = generate_jwt_token(user)
 
-    access_token_expire_time = get_environment_variable("JWT_ACCESS_TOKEN_EXPIRE_TIME", str)[
-        "JWT_ACCESS_TOKEN_EXPIRE_TIME"
-    ]
-    refresh_token_expire_time = get_environment_variable("JWT_REFRESH_TOKEN_EXPIRE_TIME", str)[
-        "JWT_REFRESH_TOKEN_EXPIRE_TIME"
-    ]
+    access_token_expire_time = get_environment_variable(
+        "JWT_ACCESS_TOKEN_EXPIRE_TIME", str
+    )["JWT_ACCESS_TOKEN_EXPIRE_TIME"]
+    refresh_token_expire_time = get_environment_variable(
+        "JWT_REFRESH_TOKEN_EXPIRE_TIME", str
+    )["JWT_REFRESH_TOKEN_EXPIRE_TIME"]
 
     access_token_expire_time = parse_duration(access_token_expire_time)
     refresh_token_expire_time = parse_duration(refresh_token_expire_time)
@@ -79,7 +79,34 @@ async def login(login_cred: UserLoginCredential) -> LoginCertificate:
     return login_certificate
 
 
-@router.post("/new-role/", response_model=int)
+@router.post("/logout/")
+async def logout(user_id: int) -> bool:
+    """
+    Log out a user by their user ID.
+
+    This endpoint attempts to log out the user by invalidating their session
+    or token from the backend database. If the provided `user_id` is invalid,
+    an HTTP 401 Unauthorized error is raised.
+
+    Args:
+        user_id (int): The ID of the user to log out.
+
+    Returns:
+        bool: True if logout was successful.
+
+    Raises:
+        HTTPException: 401 Unauthorized if the `user_id` is invalid.
+
+    """
+    result = database_client.logout(user_id=user_id)
+
+    if not isinstance(result, bool):
+        raise HTTPException(401, "Invalid user_id")
+
+    return result
+
+
+@router.post("/new-role/")
 async def create_new_role(new_role: NewRole) -> Role:
     """
     Creates a new role after validating the role name for invalid characters and duplicates.
@@ -113,7 +140,9 @@ async def create_new_role(new_role: NewRole) -> Role:
         raise HTTPException(status_code=400, detail="Role name already exists")
 
     # Create the new role and return its ID
-    role_id = database_client.create_new_role(role_name=new_role.role_name, role_description=new_role.role_description)
+    role_id = database_client.create_new_role(
+        role_name=new_role.role_name, role_description=new_role.role_description
+    )
 
     role = database_client.fetch_role_by_id(role_id)
 
@@ -194,7 +223,9 @@ async def create_new_user(new_user: NewUser) -> User:
         logger.critical("Invalid Username: %s", new_user.user_name)
         raise HTTPException(status_code=400, detail="Invalid Username")
 
-    is_valid_email = re.search(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", new_user.email)
+    is_valid_email = re.search(
+        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", new_user.email
+    )
     if not is_valid_email:
         logger.critical("Invalid Email: %s", new_user.email)
         raise HTTPException(status_code=400, detail="Invalid Email")
@@ -235,7 +266,9 @@ async def create_new_user(new_user: NewUser) -> User:
 
 
 @router.get("/get-user/name/{user_name}")
-async def get_user_by_name(user_name: str, payload: Annotated[AccessToken, Depends(require_root)]) -> User:
+async def get_user_by_name(
+    user_name: str, payload: Annotated[AccessToken, Depends(require_root)]
+) -> User:
     """
     Retrieves a user by their username.
 
