@@ -473,7 +473,7 @@ async def require_root(payload: AccessToken = Depends(verify_jwt_token)) -> Acce
 async def require_admin(
     payload: AccessToken = Depends(verify_jwt_token),
 ) -> AccessToken:
-    """Require user role to access the endpoint"""
+    """Require admin role to access the endpoint"""
     return await require_role(["admin", "root"], payload)
 
 
