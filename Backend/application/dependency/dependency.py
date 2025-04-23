@@ -230,7 +230,7 @@ async def verify_jwt_token(
         raise HTTPException(status_code=401, detail="Missing access token")
 
     # Try to decode and verify the access token
-    access_payload = await verify_access_token(access_token=access_token)
+    access_payload = verify_access_token(access_token=access_token)
 
     if isinstance(access_payload, AccessToken):
         return access_payload
@@ -239,7 +239,7 @@ async def verify_jwt_token(
     if refresh_token is None:
         raise HTTPException(status_code=401, detail="Access token expired and no refresh token provided")
 
-    refresh_payload = await verify_refresh_token(refresh_token=refresh_token)
+    refresh_payload = verify_refresh_token(refresh_token=refresh_token)
 
     if isinstance(refresh_payload, RefreshToken):
         # Indicate to client to refresh token
@@ -251,7 +251,7 @@ async def verify_jwt_token(
     raise HTTPException(status_code=401, detail="Invalid token(s)")
 
 
-async def verify_access_token(
+def verify_access_token(
     access_token: str = Header(None),
 ) -> AccessToken:
     """
@@ -292,7 +292,7 @@ async def verify_access_token(
         return AccessToken(**access_payload)
 
 
-async def verify_refresh_token(refresh_token: str) -> RefreshToken:
+def verify_refresh_token(refresh_token: str) -> RefreshToken:
     """
     Verify the validity of a refresh token.
 
@@ -374,38 +374,14 @@ async def verify_refresh_token(refresh_token: str) -> RefreshToken:
 
 
 def generate_jwt_token(user: User) -> LoginCertificate:
-    jwt_setup = get_jwt_environment_variable()
-
-    issued_at = datetime.datetime.now(tz=datetime.timezone.utc)
-    access_token_expires = issued_at + jwt_setup.access_token_expire_time
-    refresh_token_expires = issued_at + jwt_setup.refresh_token_expire_time
-
-    logger.info(jwt_setup)
-
-    access_token = jwt.encode(
-        payload={
-            "sub": str(user.user_id),  # standard claim for subject NEED TO BE A STRING
-            "user_name": user.user_name,
-            "email": user.email,
-            "role_name": user.role_name,
-            "typ": "access",
-            "iat": issued_at,
-            "exp": access_token_expires,
-        },
-        key=jwt_setup.secret,
-        algorithm=jwt_setup.algorithm,
+    access_token = generate_access_token(
+        user_id=user.user_id,
+        user_name=user.user_name,
+        email=user.email,
+        role_name=user.role_name,
     )
 
-    refresh_token = jwt.encode(
-        payload={
-            "sub": str(user.user_id),  # standard claim for subject NEED TO BE A STRING
-            "typ": "refresh",
-            "iat": issued_at,
-            "exp": refresh_token_expires,
-        },
-        key=jwt_setup.secret,
-        algorithm=jwt_setup.algorithm,
-    )
+    refresh_token = generate_refresh_token(user.user_id)
 
     return LoginCertificate(
         user_id=user.user_id,
@@ -414,6 +390,47 @@ def generate_jwt_token(user: User) -> LoginCertificate:
         role_name=user.role_name,
         access_token=access_token,
         refresh_token=refresh_token,
+    )
+
+
+def generate_access_token(user_id: int, user_name: str, email: str, role_name: str) -> str:
+    jwt_setup = get_jwt_environment_variable()
+    logger.info(jwt_setup)
+
+    issued_at = datetime.datetime.now(tz=datetime.timezone.utc)
+    expire = issued_at + jwt_setup.access_token_expire_time
+
+    return jwt.encode(
+        payload={
+            "sub": str(user_id),  # standard claim for subject NEED TO BE A STRING
+            "user_name": user_name,
+            "email": email,
+            "role_name": role_name,
+            "typ": "access",
+            "iat": issued_at,
+            "exp": expire,
+        },
+        key=jwt_setup.secret,
+        algorithm=jwt_setup.algorithm,
+    )
+
+
+def generate_refresh_token(user_id: int) -> str:
+    jwt_setup = get_jwt_environment_variable()
+    logger.info(jwt_setup)
+
+    issued_at = datetime.datetime.now(tz=datetime.timezone.utc)
+    expires = issued_at + jwt_setup.refresh_token_expire_time
+
+    return jwt.encode(
+        payload={
+            "sub": str(user_id),  # standard claim for subject NEED TO BE A STRING
+            "typ": "refresh",
+            "iat": issued_at,
+            "exp": expires,
+        },
+        key=jwt_setup.secret,
+        algorithm=jwt_setup.algorithm,
     )
 
 

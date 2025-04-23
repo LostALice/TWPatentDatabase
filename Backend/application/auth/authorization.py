@@ -11,9 +11,11 @@ from passlib.context import CryptContext  # type: ignore[import-untyped]
 
 from Backend.application.dependency.dependency import (
     generate_jwt_token,
+    generate_refresh_token,
     get_environment_variable,
     parse_duration,
     require_root,
+    verify_refresh_token,
 )
 from Backend.utility.handler.database.authorization import AuthorizationOperation
 from Backend.utility.handler.log_handler import Logger
@@ -250,8 +252,8 @@ async def get_user_by_name(user_name: str, payload: Annotated[AccessToken, Depen
         HTTPException: If the user does not exist (404).
 
     """
-    user = database_client.fetch_user_by_name(user_name)
     logger.debug(payload)
+    user = database_client.fetch_user_by_name(user_name)
 
     if user is None:
         raise HTTPException(status_code=404, detail="User Not Found")
@@ -282,7 +284,20 @@ async def get_user_by_id(user_id: int) -> User:
     return user
 
 
-@router.post("/refresh-token")
+@router.post("/refresh-token/")
 async def refresh_access_token(refresh_token: str) -> str:
     logger.info(refresh_token)
-    return refresh_token
+    token = verify_refresh_token(refresh_token=refresh_token)
+    user_id = int(token.sub)
+    db_refresh_token = database_client.fetch_refresh_token(user_id=user_id)
+
+    logger.info(db_refresh_token)
+    if db_refresh_token is None or db_refresh_token != refresh_token:
+        raise HTTPException(status_code=401, detail="Invalid or revoked refresh token")
+
+    new_refresh_token = generate_refresh_token(user_id)
+
+    database_client.revoke_access_token(user_id=user_id)
+    database_client.update_refresh_token(user_id=user_id, refresh_token=new_refresh_token)
+
+    return new_refresh_token
