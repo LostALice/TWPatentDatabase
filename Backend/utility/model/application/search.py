@@ -1,10 +1,12 @@
 # Code by AkinoAlice@TyrantRey
 
-from fastapi import APIRouter
+import datetime
 
-router = APIRouter()
+from pydantic import BaseModel
+
+from Backend.utility.model.handler.scraper import PatentInfo
 
 
-@router.get("/search/")
-async def search():
-    return "search"
+class SearchResult(BaseModel):
+    patent: PatentInfo
+    search_time: datetime.datetime

@@ -45,6 +45,23 @@ database_client = AuthorizationOperation()
 
 @router.post("/login/")
 async def login(login_cred: UserLoginCredential) -> LoginCertificate:
+    """
+    Authenticate a user and issue JWT access and refresh tokens.
+
+    This endpoint verifies the provided username and password. If the credentials are valid,
+    it generates a pair of JWT tokens and stores them in the database with their expiration times.
+
+    Args:
+        login_cred (UserLoginCredential): The login credentials, including username and hashed password.
+
+    Returns:
+        LoginCertificate: An object containing the user's info along with access and refresh tokens.
+
+    Raises:
+        HTTPException:
+            - 401 Unauthorized if the username does not exist or the password is incorrect.
+
+    """
     user = database_client.fetch_user_by_name(login_cred.user_name)
     if user is None:
         raise HTTPException(401, "Invalid Username or password")
@@ -60,12 +77,12 @@ async def login(login_cred: UserLoginCredential) -> LoginCertificate:
 
     login_certificate = generate_jwt_token(user)
 
-    access_token_expire_time = get_environment_variable("JWT_ACCESS_TOKEN_EXPIRE_TIME", str)[
-        "JWT_ACCESS_TOKEN_EXPIRE_TIME"
-    ]
-    refresh_token_expire_time = get_environment_variable("JWT_REFRESH_TOKEN_EXPIRE_TIME", str)[
-        "JWT_REFRESH_TOKEN_EXPIRE_TIME"
-    ]
+    access_token_expire_time = get_environment_variable(
+        "JWT_ACCESS_TOKEN_EXPIRE_TIME", str
+    )["JWT_ACCESS_TOKEN_EXPIRE_TIME"]
+    refresh_token_expire_time = get_environment_variable(
+        "JWT_REFRESH_TOKEN_EXPIRE_TIME", str
+    )["JWT_REFRESH_TOKEN_EXPIRE_TIME"]
 
     access_token_expire_time = parse_duration(access_token_expire_time)
     refresh_token_expire_time = parse_duration(refresh_token_expire_time)
@@ -81,8 +98,37 @@ async def login(login_cred: UserLoginCredential) -> LoginCertificate:
     return login_certificate
 
 
-@router.post("/new-role/", response_model=int)
-async def create_new_role(new_role: NewRole) -> Role:
+@router.post("/logout/")
+async def logout(user_id: int) -> bool:
+    """
+    Log out a user by their user ID.
+
+    This endpoint attempts to log out the user by invalidating their session
+    or token from the backend database. If the provided `user_id` is invalid,
+    an HTTP 401 Unauthorized error is raised.
+
+    Args:
+        user_id (int): The ID of the user to log out.
+
+    Returns:
+        bool: True if logout was successful.
+
+    Raises:
+        HTTPException: 401 Unauthorized if the `user_id` is invalid.
+
+    """
+    result = database_client.logout(user_id=user_id)
+
+    if not isinstance(result, bool):
+        raise HTTPException(401, "Invalid user_id")
+
+    return result
+
+
+@router.post("/new-role/")
+async def create_new_role(
+    new_role: NewRole, payload: Annotated[AccessToken, Depends(require_root)]
+) -> Role:
     """
     Creates a new role after validating the role name for invalid characters and duplicates.
 
@@ -92,11 +138,13 @@ async def create_new_role(new_role: NewRole) -> Role:
 
     Args:
         new_role (NewRole): The role name and optional description.
+        payload (AccessToken): The JWT payload from the verify_jwt_token dependency.
 
     Returns:
         Role: The role scheme.
 
     """
+    logger.info(payload)
     new_role.role_name = new_role.role_name.lower()
     logger.info(new_role)
 
@@ -115,7 +163,9 @@ async def create_new_role(new_role: NewRole) -> Role:
         raise HTTPException(status_code=400, detail="Role name already exists")
 
     # Create the new role and return its ID
-    role_id = database_client.create_new_role(role_name=new_role.role_name, role_description=new_role.role_description)
+    role_id = database_client.create_new_role(
+        role_name=new_role.role_name, role_description=new_role.role_description
+    )
 
     role = database_client.fetch_role_by_id(role_id)
 
@@ -171,7 +221,9 @@ async def get_role_by_id(role_id: int) -> Role:
 
 
 @router.post("/new-user/")
-async def create_new_user(new_user: NewUser) -> User:
+async def create_new_user(
+    new_user: NewUser, payload: Annotated[AccessToken, Depends(require_root)]
+) -> User:
     """
     Creates a new user after validating input data.
 
@@ -183,6 +235,7 @@ async def create_new_user(new_user: NewUser) -> User:
 
     Args:
         new_user (NewUser): The new user's registration data.
+        payload (AccessToken): The JWT payload from the verify_jwt_token dependency.
 
     Returns:
         dict[str, int]: A dictionary containing the new user's ID.
@@ -191,20 +244,19 @@ async def create_new_user(new_user: NewUser) -> User:
         HTTPException: On invalid input or database error.
 
     """
+    logger.info(payload)
+
     is_invalid_characters = bool(re.search(r"[^a-zA-Z0-9]", new_user.user_name))
     if is_invalid_characters:
         logger.critical("Invalid Username: %s", new_user.user_name)
         raise HTTPException(status_code=400, detail="Invalid Username")
 
-    is_valid_email = re.search(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", new_user.email)
+    is_valid_email = re.search(
+        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", new_user.email
+    )
     if not is_valid_email:
         logger.critical("Invalid Email: %s", new_user.email)
         raise HTTPException(status_code=400, detail="Invalid Email")
-
-    # is_valid_bcrypt = bool(re.search(r"^\$2[ayb]\$.{56}$", new_user.hashed_password))
-    # if not is_valid_bcrypt:
-    #     logger.critical("Invalid Password: %s", new_user.hashed_password)
-    #     raise HTTPException(status_code=400, detail="Invalid Password")
 
     role_name_list = [r.role_name for r in database_client.fetch_all_role()]
     if new_user.role_name not in role_name_list:
@@ -237,13 +289,12 @@ async def create_new_user(new_user: NewUser) -> User:
 
 
 @router.get("/get-user/name/{user_name}")
-async def get_user_by_name(user_name: str, payload: Annotated[AccessToken, Depends(require_root)]) -> User:
+async def get_user_by_name(user_name: str) -> User:
     """
     Retrieves a user by their username.
 
     Args:
         user_name (str): The username to look up.
-        payload (AccessToken): The JWT payload from the verify_jwt_token dependency.
 
     Returns:
         User: The matching User object.
@@ -252,7 +303,6 @@ async def get_user_by_name(user_name: str, payload: Annotated[AccessToken, Depen
         HTTPException: If the user does not exist (404).
 
     """
-    logger.debug(payload)
     user = database_client.fetch_user_by_name(user_name)
 
     if user is None:
@@ -286,6 +336,21 @@ async def get_user_by_id(user_id: int) -> User:
 
 @router.post("/refresh-token/")
 async def refresh_access_token(refresh_token: str) -> str:
+    """
+    Endpoint to initiate access token renewal using a refresh token.
+
+    This route accepts a refresh token and is typically called after the
+    access token has expired. In a complete implementation, the refresh token
+    would be verified, and a new access token (and possibly a new refresh token)
+    would be issued.
+
+    Args:
+        refresh_token (str): The JWT refresh token provided by the client.
+
+    Returns:
+        str: Echoes the received refresh token (for demonstration/debugging purposes).
+
+    """
     logger.info(refresh_token)
     token = verify_refresh_token(refresh_token=refresh_token)
     user_id = int(token.sub)

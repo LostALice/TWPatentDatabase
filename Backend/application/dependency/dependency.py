@@ -11,7 +11,10 @@ import jwt
 from fastapi import Depends, Header, HTTPException
 from jwt.exceptions import ExpiredSignatureError, InvalidSignatureError, PyJWTError
 
-from Backend.utility.error.common import EnvironmentVariableNotSetError, InvalidTypingError
+from Backend.utility.error.common import (
+    EnvironmentVariableNotSetError,
+    InvalidTypingError,
+)
 from Backend.utility.error.dependency.dependency import (
     InvalidAlgorithmError,
     InvalidJWTExpireTimeFormatError,
@@ -97,17 +100,6 @@ def _coerce(raw: str, expected_type: type) -> Any:
 
     Raises:
         InvalidTypingError: If the raw value cannot be coerced to the expected type.
-
-    Examples:
-        >>> _coerce("true", bool)
-        True
-        >>> _coerce("1,2,3", list)
-        ['1', '2', '3']
-        >>> _coerce("[1, 2, 3]", list)
-        [1, 2, 3]
-        >>> _coerce("42", int)
-        42
-
     """
     if expected_type is bool:
         lowered = raw.lower()
@@ -133,7 +125,9 @@ def _coerce(raw: str, expected_type: type) -> Any:
         raise InvalidTypingError(msg) from exc
 
 
-def get_environment_variable(variable: str, expected_type: type = str) -> dict[str, Any]:
+def get_environment_variable(
+    variable: str, expected_type: type = str
+) -> dict[str, Any]:
     """
     Check if an environment variable exists and coerce its value to the expected type.
 
@@ -180,12 +174,12 @@ def get_jwt_environment_variable() -> JWTEnvironmentalSetup:
     """
     jwt_secret = get_environment_variable("JWT_SECRET")["JWT_SECRET"]
     jwt_algorithm = get_environment_variable("JWT_ALGORITHM")["JWT_ALGORITHM"]
-    jwt_access_token_expire_time = get_environment_variable("JWT_ACCESS_TOKEN_EXPIRE_TIME")[
+    jwt_access_token_expire_time = get_environment_variable(
         "JWT_ACCESS_TOKEN_EXPIRE_TIME"
-    ]
-    jwt_refresh_token_expire_time = get_environment_variable("JWT_REFRESH_TOKEN_EXPIRE_TIME")[
+    )["JWT_ACCESS_TOKEN_EXPIRE_TIME"]
+    jwt_refresh_token_expire_time = get_environment_variable(
         "JWT_REFRESH_TOKEN_EXPIRE_TIME"
-    ]
+    )["JWT_REFRESH_TOKEN_EXPIRE_TIME"]
 
     if jwt_algorithm not in [
         "HS256",
@@ -217,8 +211,24 @@ def get_jwt_environment_variable() -> JWTEnvironmentalSetup:
 
 
 def _check_revocation(payload: dict, token: str, token_type: TokenType) -> None:
+    """
+    Check if the given token has been revoked for the user.
+
+    This function verifies the token's validity against the database. If the token
+    has been revoked (i.e., is no longer valid for the user), it raises an HTTP 401 error.
+
+    Args:
+        payload (dict): The decoded JWT payload containing at least the 'sub' (user ID).
+        token (str): The JWT token string to verify.
+        token_type (TokenType): The type of token being verified (e.g., access or refresh).
+
+    Raises:
+        HTTPException: 401 Unauthorized if the token has been revoked or is invalid.
+    """
     logger.debug(payload)
-    if not database_client.verify_token(user_id=int(payload["sub"]), token=token or "", token_type=token_type):
+    if not database_client.verify_token(
+        user_id=int(payload["sub"]), token=token or "", token_type=token_type
+    ):
         raise HTTPException(status_code=401, detail="Token revoked")
 
 
@@ -226,6 +236,31 @@ async def verify_jwt_token(
     access_token: str = Header(default=None),
     refresh_token: str = Header(default=None),
 ) -> AccessToken:
+    """
+    Verify the validity of the provided JWT access token.
+
+    This function checks if the access token is present and valid. If it has
+    expired or is otherwise invalid, and a refresh token is provided, the function
+    checks if the refresh token is valid and informs the client to refresh the token.
+
+    Args:
+        access_token (str): JWT access token, expected in the request headers.
+        refresh_token (str): Optional JWT refresh token, also expected in headers.
+
+    Returns:
+        AccessToken: The decoded payload of the access token if it is valid.
+
+    Raises:
+        HTTPException (401):
+            - If the access token is missing.
+            - If the access token is invalid or expired and no valid refresh token is provided.
+            - If both tokens are invalid or the refresh token is not used properly.
+            - If the refresh token is valid, prompts the client to refresh via the designated endpoint.
+
+    Notes:
+        - Designed to be used as a dependency in FastAPI routes.
+        - Refreshing does not occur automatically; the client must call `/auth/refresh-token`.
+    """
     if access_token is None:
         raise HTTPException(status_code=401, detail="Missing access token")
 
@@ -237,7 +272,9 @@ async def verify_jwt_token(
 
     # If access token is invalid/expired, check for refresh token
     if refresh_token is None:
-        raise HTTPException(status_code=401, detail="Access token expired and no refresh token provided")
+        raise HTTPException(
+            status_code=401, detail="Access token expired and no refresh token provided"
+        )
 
     refresh_payload = verify_refresh_token(refresh_token=refresh_token)
 
@@ -271,23 +308,31 @@ def verify_access_token(
     logger.info(jwt_setup)
 
     try:
-        access_payload = jwt.decode(access_token, jwt_setup.secret, algorithms=jwt_setup.algorithm)
+        access_payload = jwt.decode(
+            access_token, jwt_setup.secret, algorithms=jwt_setup.algorithm
+        )
         _check_revocation(access_payload, access_token, "access")
         logger.info(access_payload)
 
     except InvalidSignatureError as e:
         logger.critical("Access token check failed InvalidSignatureError: %s", e)
         logger.info("Checking Refresh Token")
-        raise HTTPException(401, "Invalid access token, please refresh access token") from e
+        raise HTTPException(
+            401, "Invalid access token, please refresh access token"
+        ) from e
 
     except ExpiredSignatureError as e:
         logger.critical("Access token check failed ExpiredSignatureError: %s", e)
         logger.info("Checking Refresh Token")
-        raise HTTPException(401, "Invalid access token, please refresh access token") from e
+        raise HTTPException(
+            401, "Invalid access token, please refresh access token"
+        ) from e
 
     except PyJWTError as e:
         logger.warning("Access-token error: %s", e)
-        raise HTTPException(401, "Invalid access token, please refresh access token") from e
+        raise HTTPException(
+            401, "Invalid access token, please refresh access token"
+        ) from e
     else:
         return AccessToken(**access_payload)
 
@@ -310,7 +355,9 @@ def verify_refresh_token(refresh_token: str) -> RefreshToken:
     logger.info("Verifying refresh token with algorithm: %s", jwt_setup.algorithm)
 
     try:
-        refresh_payload = jwt.decode(refresh_token, jwt_setup.secret, algorithms=[jwt_setup.algorithm])
+        refresh_payload = jwt.decode(
+            refresh_token, jwt_setup.secret, algorithms=[jwt_setup.algorithm]
+        )
         _check_revocation(refresh_payload, refresh_token, "refresh")
         logger.debug("Refresh token valid: %s", refresh_payload)
 
@@ -318,67 +365,76 @@ def verify_refresh_token(refresh_token: str) -> RefreshToken:
 
     except InvalidSignatureError as e:
         logger.critical("Refresh token signature invalid: %s", e)
-        raise HTTPException(status_code=401, detail="Invalid refresh token, please re-login") from e
+        raise HTTPException(
+            status_code=401, detail="Invalid refresh token, please re-login"
+        ) from e
 
     except ExpiredSignatureError as e:
         logger.warning("Refresh token expired: %s", e)
-        raise HTTPException(status_code=401, detail="Refresh token expired, please re-login") from e
+        raise HTTPException(
+            status_code=401, detail="Refresh token expired, please re-login"
+        ) from e
 
     except PyJWTError as e:
         logger.warning("Refresh token error: %s", e)
-        raise HTTPException(status_code=401, detail="Invalid refresh token, please re-login") from e
-
-    # try:
-    #     refresh_payload = jwt.decode(refresh_token, jwt_setup.secret, algorithms=jwt_setup.algorithm)
-    #     if refresh_payload.get("typ") != "refresh":
-    #         raise HTTPException(401, "Invalid refresh token")
-    #     _check_revocation(refresh_payload, refresh_token, "refresh")
-    #     # Sanity-check subject matches
-    #     if refresh_payload["sub"] != jwt.decode(access_token, options={"verify_signature": False})["sub"]:
-    #         raise HTTPException(401, "Token pair mismatch")
-
-    # except ExpiredSignatureError as e:
-    #     logger.critical("Refresh token check failed ExpiredSignatureError: %s", e)
-    #     raise HTTPException(401, "Refresh token expired") from e
-
-    # except InvalidSignatureError as e:
-    #     logger.critical("Refresh token check failed InvalidSignatureError: %s", e)
-    #     raise HTTPException(401, "Refresh token expired") from e
-
-    # except PyJWTError as e:
-    #     logger.warning("Refresh-token error: %s", e)
-    #     raise HTTPException(401, "Invalid refresh token") from e
-
-    # return False
-    # logger.info(refresh_payload)
-    # user_id = refresh_payload["sub"]
-
-    # current_time = datetime.datetime.now(tz=datetime.timezone.utc)
-    # expire_time = current_time + jwt_setup.access_token_expire_time
-
-    # new_access_payload = {
-    #     **refresh_payload,  # sub, etc.
-    #     "typ": "access",
-    #     "iat": current_time,
-    #     "exp": expire_time,
-    # }
-    # new_access_token = jwt.encode(new_access_payload, jwt_setup.secret, algorithm=jwt_setup.algorithm)
-    # database_client.store_token(
-    #     user_id=user_id, token=new_access_token, token_type="access", iat=current_time, exp=expire_time
-    # )
-
-    # response: Response = Response()
-    # response.headers["X-New-Access-Token"] = new_access_token
-
-    # return AccessToken(**new_access_payload)
+        raise HTTPException(
+            status_code=401, detail="Invalid refresh token, please re-login"
+        ) from e
 
 
 def generate_jwt_token(user: User) -> LoginCertificate:
+<<<<<<< HEAD
     access_token = generate_access_token(
         user_id=user.user_id,
         user_name=user.user_name,
         email=user.email,
         role_name=user.role_name,
+=======
+    """
+    Generate a pair of JWT tokens (access and refresh) for the given user.
+
+    This function creates a signed JWT access token and refresh token using the
+    user's information and environment-configured secret and algorithm. The
+    access token includes detailed user claims and a short expiration time,
+    while the refresh token has a longer lifespan and fewer claims.
+
+    Args:
+        user (User): A user object containing user_id, user_name, email, and role_name.
+
+    Returns:
+        LoginCertificate: An object containing the user's info along with the
+        generated access and refresh tokens.
+
+    Notes:
+        - The "sub" (subject) claim in the JWT must be a string according to JWT standards.
+        - The issued time (`iat`) and expiration (`exp`) are in UTC timezone.
+        - Token expiry durations are pulled from the JWT environment setup.
+
+    Raises:
+        None directly, but improper environment variables or encoding errors may raise exceptions.
+
+    """
+    jwt_setup = get_jwt_environment_variable()
+
+    issued_at = datetime.datetime.now(tz=datetime.timezone.utc)
+    access_token_expires = issued_at + jwt_setup.access_token_expire_time
+    refresh_token_expires = issued_at + jwt_setup.refresh_token_expire_time
+
+    logger.info(jwt_setup)
+
+    access_token = jwt.encode(
+        payload={
+            "sub": str(user.user_id),  # standard claim for subject NEED TO BE A STRING
+            "user_name": user.user_name,
+            "email": user.email,
+            "role_name": user.role_name,
+            "typ": "access",
+            "iat": issued_at,
+            "exp": access_token_expires,
+        },
+        key=jwt_setup.secret,
+        algorithm=jwt_setup.algorithm,
+>>>>>>> 99275720edf72cc39e6f58e572e6b93a1b897ce2
     )
 
     refresh_token = generate_refresh_token(user.user_id)
@@ -393,6 +449,7 @@ def generate_jwt_token(user: User) -> LoginCertificate:
     )
 
 
+<<<<<<< HEAD
 def generate_access_token(user_id: int, user_name: str, email: str, role_name: str) -> str:
     jwt_setup = get_jwt_environment_variable()
     logger.info(jwt_setup)
@@ -435,6 +492,11 @@ def generate_refresh_token(user_id: int) -> str:
 
 
 async def require_role(required_roles: list[str], payload: AccessToken = Depends(verify_jwt_token)) -> AccessToken:
+=======
+async def require_role(
+    required_roles: list[str], payload: AccessToken = Depends(verify_jwt_token)
+) -> AccessToken:
+>>>>>>> 99275720edf72cc39e6f58e572e6b93a1b897ce2
     """
     Check if the authenticated user has one of the required roles.
 
@@ -458,6 +520,13 @@ async def require_role(required_roles: list[str], payload: AccessToken = Depends
 async def require_root(payload: AccessToken = Depends(verify_jwt_token)) -> AccessToken:
     """Require root role to access the endpoint"""
     return await require_role(["admin"], payload)
+
+
+async def require_admin(
+    payload: AccessToken = Depends(verify_jwt_token),
+) -> AccessToken:
+    """Require admin role to access the endpoint"""
+    return await require_role(["admin", "root"], payload)
 
 
 async def require_user(payload: AccessToken = Depends(verify_jwt_token)) -> AccessToken:
