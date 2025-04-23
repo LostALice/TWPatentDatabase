@@ -4,11 +4,7 @@ from __future__ import annotations
 
 import datetime
 
-<<<<<<< HEAD
-from sqlalchemy import insert, select, update
-=======
 from sqlalchemy import delete, insert, select
->>>>>>> 99275720edf72cc39e6f58e572e6b93a1b897ce2
 
 from Backend.utility.error.database.database import RoleIDNotFoundError
 from Backend.utility.handler.log_handler import Logger
@@ -122,9 +118,7 @@ class AuthorizationOperation:
             (int | None): The role ID if the role exists, otherwise None.
 
         """
-        check_exist_statement = select(RoleScheme.role_id).where(
-            RoleScheme.role_name == role_name
-        )
+        check_exist_statement = select(RoleScheme.role_id).where(RoleScheme.role_name == role_name)
 
         is_role_exist = self.database.run_query(check_exist_statement)
         self.logger.debug(is_role_exist)
@@ -149,9 +143,7 @@ class AuthorizationOperation:
         if existing_role_id:
             return existing_role_id
 
-        insert_stmt = insert(RoleScheme).values(
-            role_name=role_name, role_description=role_description
-        )
+        insert_stmt = insert(RoleScheme).values(role_name=role_name, role_description=role_description)
         success = self.database.run_write(insert_stmt)
 
         if not success:
@@ -234,9 +226,7 @@ class AuthorizationOperation:
             role_name=result[0]["role_name"],
         )
 
-    def create_new_user(
-        self, role_id: int, user_name: str, hashed_password: str, email: str = ""
-    ) -> int | None:
+    def create_new_user(self, role_id: int, user_name: str, hashed_password: str, email: str = "") -> int | None:
         """
         Creates a new user in the database and returns the newly assigned user ID.
 
@@ -382,39 +372,6 @@ class AuthorizationOperation:
         result = self.database.run_query(operation)
         return result == []
 
-<<<<<<< HEAD
-    def fetch_refresh_token(self, user_id: int) -> str:
-        operation = select(LoginScheme.refresh_token).where(
-            LoginScheme.user_id == user_id,
-        )
-        result = self.database.run_query(operation)
-        self.logger.info(result)
-        return result[0]["refresh_token"] if result else ""
-
-    def revoke_access_token(self, user_id: int) -> bool:
-        operation = (
-            update(LoginScheme)
-            .where(
-                LoginScheme.user_id == user_id,
-            )
-            .values(access_token="")
-        )
-        result = self.database.run_query(operation)
-
-        return result != []
-
-    def update_refresh_token(self, user_id: int, refresh_token: str) -> bool:
-        operation = (
-            update(LoginScheme)
-            .where(
-                LoginScheme.user_id == user_id,
-            )
-            .values(refresh_token=refresh_token)
-        )
-        result = self.database.run_query(operation)
-        self.logger.info(result)
-        return result != []
-=======
     def logout(self, user_id: int) -> bool:
         """
         Log out a user by deleting their login session from the database.
@@ -436,4 +393,3 @@ class AuthorizationOperation:
         result = self.database.run_query(operation)
         self.logger.info(result)
         return result == []
->>>>>>> 99275720edf72cc39e6f58e572e6b93a1b897ce2
