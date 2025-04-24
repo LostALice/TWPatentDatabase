@@ -9,12 +9,15 @@ from fastapi import APIRouter
 from passlib.context import CryptContext
 
 from Backend.utility.handler.database.authorization import AuthorizationOperation
+from Backend.utility.handler.database.scraper import ScraperOperation
 from Backend.utility.handler.log_handler import Logger
+from Backend.utility.handler.scraper import Scraper
 from Backend.utility.model.application.auth.authorization import (
     User,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/dev")
+
 
 # development
 GLOBAL_DEBUG_MODE = getenv("DEBUG")
@@ -24,11 +27,28 @@ if GLOBAL_DEBUG_MODE is None or GLOBAL_DEBUG_MODE == "True":
 
     load_dotenv("./.env")
 
-authorization_client = AuthorizationOperation()
+authorization_database_client = AuthorizationOperation()
+scraper_database_client = ScraperOperation()
 
 
-@router.get("/dev/create-default-user/")
+@router.get("/create-default-user/")
 async def create_default_user() -> list[User]:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__default_rounds=12)
     hashed_password = pwd_context.hash("example_password")
-    return authorization_client.create_default_role_and_user(hashed_password)
+    return authorization_database_client.create_default_role_and_user(hashed_password)
+
+
+@router.post("/download/")
+async def download_patent(patent_keyword: str = "鞋面") -> bool:
+    scraper = Scraper()
+    scraper.create_scraper()
+    scraper.keyword = patent_keyword
+    # total_patent, total_page = scraper.search(patent_keyword)
+
+    for page_number in range(1, 2):
+        for url in scraper.get_patent_url(page=page_number):
+            patent_data = scraper.get_patent_information(url)
+            logger.info(patent_data)
+            scraper_database_client.insert_patent(patent=patent_data)
+    scraper.destroy_scraper()
+    return True

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import to_tsquery, to_tsvector
+from sqlalchemy import func, select
 
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.handler.database.scheme import PatentScheme
+from Backend.utility.model.handler.scraper import PatentInfo
 
 from .database import DatabaseConnection
 
@@ -15,16 +15,41 @@ class SearchEngineOperation:
     def __init__(self) -> None:
         self.logger = Logger().get_logger()
 
-    def search(self, search_keywords: list[str] | str) -> None:
+    def search(self, search_keywords: str) -> list[PatentInfo]:
         self.logger.info(search_keywords)
+        self.database = DatabaseConnection
 
-        search_col = f"{PatentScheme.id} {PatentScheme.application_date} {PatentScheme.publication_date} {PatentScheme.application_number} {PatentScheme.publication_number} {PatentScheme.applicant} {PatentScheme.inventor} {PatentScheme.attorney} {PatentScheme.priority} {PatentScheme.gazette_ipc} {PatentScheme.ipc} {PatentScheme.gazette_volume} {PatentScheme.kind_codes}"
-
-        operation = select(PatentScheme).filter(
-            to_tsvector("english", search_col).match(search_keywords)
+        operation = select(PatentScheme).where(
+            func.to_tsvector("english", PatentScheme.title).bool_op("@@")(func.to_tsquery("english", search_keywords))
         )
 
-        result = DatabaseConnection.run_query(operation)
+        result = self.database.run_query(operation)
 
         self.logger.info(result)
+
+        # for i in result:
+        #     self.logger.debug(i[0].id)
+        patent_list: list[PatentInfo] = [
+            PatentInfo(
+                Title=patent["PatentScheme"].title,
+                ApplicationDate=patent["PatentScheme"].application_date,
+                PublicationDate=patent["PatentScheme"].publication_date,
+                ApplicationNumber=patent["PatentScheme"].application_number,
+                PublicationNumber=patent["PatentScheme"].publication_number,
+                Applicant=patent["PatentScheme"].applicant,
+                Inventor=patent["PatentScheme"].inventor,
+                Attorney=patent["PatentScheme"].attorney,
+                Priority=patent["PatentScheme"].priority,
+                GazetteIPC=patent["PatentScheme"].gazette_ipc,
+                IPC=patent["PatentScheme"].ipc,
+                GazetteVolume=patent["PatentScheme"].gazette_volume,
+                KindCodes=patent["PatentScheme"].kind_codes,
+                PatentURL=patent["PatentScheme"].patent_url,
+                PatentFilePath=patent["PatentScheme"].patent_file_path,
+            )
+            for patent in result
+        ]
+        self.logger.info(patent_list)
+
+        return patent_list
 

@@ -8,7 +8,7 @@ from Backend.application.dependency.dependency import (
     require_user,
 )
 
-router = APIRouter(dependencies=[Depends(require_user)])
+router = APIRouter(prefix="/result", dependencies=[Depends(require_user)])
 
 
 @router.get("/result/")

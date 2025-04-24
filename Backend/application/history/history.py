@@ -9,10 +9,10 @@ from Backend.application.dependency.dependency import (
 )
 from Backend.utility.model.application.history import HistoryRecord
 
-router = APIRouter(dependencies=[Depends(require_user)])
+router = APIRouter(prefix="/history", dependencies=[Depends(require_user)])
 
 
 @router.get("/history/")
-async def history(user_id: int) -> list[HistoryRecord]:
+async def history(user_id: int) -> str:
     """Get recent history"""
     return "history"

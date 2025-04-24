@@ -85,7 +85,6 @@ class Database:
             self.__clear_database()
             self.__initialize_database()
 
-
         self.logger.info("| Loaded Database |")
 
     def __initialize_database(self) -> None:
@@ -107,6 +106,7 @@ class Database:
             self.logger.debug(str(CreateTable(table).compile(self.engine)))
         BaseScheme.metadata.create_all(self.engine)
 
+        # English full text search index
         tsvector_index = """CREATE INDEX IF NOT EXISTS patent_search_idx ON patent USING GIN (to_tsvector('english', coalesce(application_number, '') || ' ' || coalesce(applicant, '') || ' ' || coalesce(ipc, '') || ' ' || coalesce(title, '')));"""
         is_index_created = self.run_raw_query(tsvector_index)
 

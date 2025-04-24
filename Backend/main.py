@@ -41,7 +41,7 @@ app.add_middleware(
 
 app.include_router(
     authorization.router,
-    prefix="/api/v1/authorization",
+    prefix="/api/v1",
     tags=["Authorization", "v1"],
 )
 app.include_router(
@@ -79,6 +79,6 @@ if GLOBAL_DEBUG_MODE == "True":
     from Backend.application.dev import dev
     app.include_router(
         dev.router,
-        prefix="/api/v1/dev",
+        prefix="/api/v1",
         tags=["Test", "v1"],
     )

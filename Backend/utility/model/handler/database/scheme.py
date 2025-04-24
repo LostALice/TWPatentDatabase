@@ -2,7 +2,7 @@
 
 import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -36,17 +36,40 @@ class UserScheme(BaseScheme):
 
 class LoginScheme(BaseScheme):
     __tablename__ = "logins"
+    __table_args__ = (UniqueConstraint("user_id", name="uq_logins_user_id"),)
 
-    login_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"))
-    access_token: Mapped[str] = mapped_column(String(512), nullable=False)
-    refresh_token: Mapped[str] = mapped_column(String(512), nullable=False)
-    access_token_created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=func.now())
-    access_token_expires_at: Mapped[datetime.timedelta] = mapped_column(DateTime)
-    refresh_token_created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=func.now())
-    refresh_token_expires_at: Mapped[datetime.timedelta] = mapped_column(DateTime)
+    login_id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, unique=True)
+    access_token = mapped_column(String(512), nullable=False)
+    refresh_token = mapped_column(String(512), nullable=False)
+
+    access_token_created_at = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    access_token_expires_at = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    refresh_token_created_at = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    refresh_token_expires_at = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
 
     user = relationship("UserScheme", backref="logins")
+
+    def __repr__(self):
+        return (
+            f"<Login(user_id={self.user_id}, "
+            f"access_expires={self.access_token_expires_at}, "
+            f"refresh_expires={self.refresh_token_expires_at})>"
+        )
 
 
 class PatentScheme(BaseScheme):
@@ -72,5 +95,27 @@ class PatentScheme(BaseScheme):
 
     search_vector = mapped_column(TSVECTOR)
 
+
+class HistoryScheme(BaseScheme):
+    __tablename__ = "history"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    patent_id: Mapped[int] = mapped_column(
+        ForeignKey("patent.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    keyword: Mapped[str] = mapped_column(Text, nullable=False)
+    search_time: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+
+    user = relationship("UserScheme", backref="history")
+    patent = relationship("PatentScheme", backref="history")
+
     def __repr__(self):
-        return f"<Patent(id={self.id}, application_number='{self.application_number}')>"
+        return (
+            f"<History(id={self.id}, user_id={self.user_id}, "
+            f"keyword={self.keyword!r}, patent_id={self.patent_id}, "
+            f"time={self.search_time})>"
+        )

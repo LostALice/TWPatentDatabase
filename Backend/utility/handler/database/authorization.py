@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import datetime
 
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, insert, select, update
+from sqlalchemy.dialects.postgresql import Insert as PostgresqlInsert
 
 from Backend.utility.error.database.database import RoleIDNotFoundError
 from Backend.utility.handler.log_handler import Logger
@@ -362,12 +363,24 @@ class AuthorizationOperation:
 
         """
         current_time = datetime.datetime.now(datetime.timezone.utc)
-        operation = insert(LoginScheme).values(
-            user_id=user_id,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            access_token_expires_at=current_time + access_token_expires_ttl,
-            refresh_token_expires_at=current_time + refresh_token_expires_ttl,
+        operation = (
+            PostgresqlInsert(LoginScheme)
+            .values(
+                user_id=user_id,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                access_token_expires_at=current_time + access_token_expires_ttl,
+                refresh_token_expires_at=current_time + refresh_token_expires_ttl,
+            )
+            .on_conflict_do_update(
+                index_elements=[LoginScheme.user_id],
+                set_={
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "access_token_expires_at": current_time + access_token_expires_ttl,
+                    "refresh_token_expires_at": current_time + refresh_token_expires_ttl,
+                },
+            )
         )
         result = self.database.run_query(operation)
         return result == []
@@ -393,3 +406,35 @@ class AuthorizationOperation:
         result = self.database.run_query(operation)
         self.logger.info(result)
         return result == []
+
+    def fetch_refresh_token(self, user_id: int) -> str:
+        operation = select(LoginScheme.refresh_token).where(
+            LoginScheme.user_id == user_id,
+        )
+        result = self.database.run_query(operation)
+        self.logger.info(result)
+        return result[0]["refresh_token"] if result else ""
+
+    def revoke_access_token(self, user_id: int) -> bool:
+        operation = (
+            update(LoginScheme)
+            .where(
+                LoginScheme.user_id == user_id,
+            )
+            .values(access_token="")
+        )
+        result = self.database.run_query(operation)
+
+        return result != []
+
+    def update_refresh_token(self, user_id: int, refresh_token: str) -> bool:
+        operation = (
+            update(LoginScheme)
+            .where(
+                LoginScheme.user_id == user_id,
+            )
+            .values(refresh_token=refresh_token)
+        )
+        result = self.database.run_query(operation)
+        self.logger.info(result)
+        return result != []

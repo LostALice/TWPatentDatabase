@@ -1,6 +1,6 @@
 # Code by AkinoAlice@TyrantRey
 
-import datetime
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -8,5 +8,5 @@ from Backend.utility.model.handler.scraper import PatentInfo
 
 
 class SearchResult(BaseModel):
-    patent: PatentInfo
-    search_time: datetime.datetime
+    patents: list[PatentInfo]
+    search_time: datetime

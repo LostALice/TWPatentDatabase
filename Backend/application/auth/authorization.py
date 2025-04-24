@@ -29,7 +29,7 @@ from Backend.utility.model.application.auth.authorization import (
 )
 from Backend.utility.model.application.dependency.dependency import AccessToken
 
-router = APIRouter()
+router = APIRouter(prefix="/authorization")
 logger = Logger().get_logger()
 
 # development
@@ -77,12 +77,12 @@ async def login(login_cred: UserLoginCredential) -> LoginCertificate:
 
     login_certificate = generate_jwt_token(user)
 
-    access_token_expire_time = get_environment_variable(
-        "JWT_ACCESS_TOKEN_EXPIRE_TIME", str
-    )["JWT_ACCESS_TOKEN_EXPIRE_TIME"]
-    refresh_token_expire_time = get_environment_variable(
-        "JWT_REFRESH_TOKEN_EXPIRE_TIME", str
-    )["JWT_REFRESH_TOKEN_EXPIRE_TIME"]
+    access_token_expire_time = get_environment_variable("JWT_ACCESS_TOKEN_EXPIRE_TIME", str)[
+        "JWT_ACCESS_TOKEN_EXPIRE_TIME"
+    ]
+    refresh_token_expire_time = get_environment_variable("JWT_REFRESH_TOKEN_EXPIRE_TIME", str)[
+        "JWT_REFRESH_TOKEN_EXPIRE_TIME"
+    ]
 
     access_token_expire_time = parse_duration(access_token_expire_time)
     refresh_token_expire_time = parse_duration(refresh_token_expire_time)
@@ -126,9 +126,7 @@ async def logout(user_id: int) -> bool:
 
 
 @router.post("/new-role/")
-async def create_new_role(
-    new_role: NewRole, payload: Annotated[AccessToken, Depends(require_root)]
-) -> Role:
+async def create_new_role(new_role: NewRole, payload: Annotated[AccessToken, Depends(require_root)]) -> Role:
     """
     Creates a new role after validating the role name for invalid characters and duplicates.
 
@@ -163,9 +161,7 @@ async def create_new_role(
         raise HTTPException(status_code=400, detail="Role name already exists")
 
     # Create the new role and return its ID
-    role_id = database_client.create_new_role(
-        role_name=new_role.role_name, role_description=new_role.role_description
-    )
+    role_id = database_client.create_new_role(role_name=new_role.role_name, role_description=new_role.role_description)
 
     role = database_client.fetch_role_by_id(role_id)
 
@@ -221,9 +217,7 @@ async def get_role_by_id(role_id: int) -> Role:
 
 
 @router.post("/new-user/")
-async def create_new_user(
-    new_user: NewUser, payload: Annotated[AccessToken, Depends(require_root)]
-) -> User:
+async def create_new_user(new_user: NewUser, payload: Annotated[AccessToken, Depends(require_root)]) -> User:
     """
     Creates a new user after validating input data.
 
@@ -251,9 +245,7 @@ async def create_new_user(
         logger.critical("Invalid Username: %s", new_user.user_name)
         raise HTTPException(status_code=400, detail="Invalid Username")
 
-    is_valid_email = re.search(
-        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", new_user.email
-    )
+    is_valid_email = re.search(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", new_user.email)
     if not is_valid_email:
         logger.critical("Invalid Email: %s", new_user.email)
         raise HTTPException(status_code=400, detail="Invalid Email")
