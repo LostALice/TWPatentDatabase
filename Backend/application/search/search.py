@@ -17,7 +17,7 @@ engine = SearchEngineOperation()
 
 @router.post("/search/")
 async def search(search_keywords: str) -> SearchResult:
-    search_result = engine.search(search_keywords)
+    search_result = engine.full_text_search(search_keywords)
 
     return SearchResult(
         patents=search_result,

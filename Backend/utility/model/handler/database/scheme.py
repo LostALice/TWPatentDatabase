@@ -2,7 +2,8 @@
 
 import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -94,6 +95,18 @@ class PatentScheme(BaseScheme):
     patent_file_path: Mapped[str] = mapped_column(Text)
 
     search_vector = mapped_column(TSVECTOR)
+
+
+class PatentVectorScheme(BaseScheme):
+    __tablename__ = "vector"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patent_id: Mapped[int] = mapped_column(
+        ForeignKey("patent.id", ondelete="CASCADE"),
+    )
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    embedding: Mapped[int] = mapped_column(Vector(1024), nullable=False)
+    is_image: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class HistoryScheme(BaseScheme):

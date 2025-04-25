@@ -15,7 +15,7 @@ class SearchEngineOperation:
     def __init__(self) -> None:
         self.logger = Logger().get_logger()
 
-    def search(self, search_keywords: str) -> list[PatentInfo]:
+    def full_text_search(self, search_keywords: str) -> list[PatentInfo]:
         self.logger.info(search_keywords)
         self.database = DatabaseConnection
 
@@ -53,3 +53,4 @@ class SearchEngineOperation:
 
         return patent_list
 
+    def vector_search(self) -> list[PatentInfo]: ...
