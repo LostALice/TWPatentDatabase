@@ -39,26 +39,28 @@ class LoginScheme(BaseScheme):
     __tablename__ = "logins"
     __table_args__ = (UniqueConstraint("user_id", name="uq_logins_user_id"),)
 
-    login_id = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id = mapped_column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, unique=True)
-    access_token = mapped_column(String(512), nullable=False)
-    refresh_token = mapped_column(String(512), nullable=False)
+    login_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    access_token: Mapped[str] = mapped_column(String(512), nullable=False)
+    refresh_token: Mapped[str] = mapped_column(String(512), nullable=False)
 
-    access_token_created_at = mapped_column(
+    access_token_created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
-    access_token_expires_at = mapped_column(
+    access_token_expires_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
     )
-    refresh_token_created_at = mapped_column(
+    refresh_token_created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
-    refresh_token_expires_at = mapped_column(
+    refresh_token_expires_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
     )

@@ -8,7 +8,7 @@ from os import getenv
 from typing import Any
 
 import jwt
-from fastapi import Depends, Header, HTTPException
+from fastapi import Cookie, Depends, HTTPException
 from jwt.exceptions import ExpiredSignatureError, InvalidSignatureError, PyJWTError
 
 from Backend.utility.error.common import (
@@ -231,8 +231,8 @@ def _check_revocation(payload: dict, token: str, token_type: TokenType) -> None:
 
 
 async def verify_jwt_token(
-    access_token: str = Header(default=None),
-    refresh_token: str = Header(default=None),
+    access_token: str = Cookie(default=None),
+    refresh_token: str = Cookie(default=None),
 ) -> AccessToken:
     """
     Verify the validity of the provided JWT access token.
@@ -242,8 +242,8 @@ async def verify_jwt_token(
     checks if the refresh token is valid and informs the client to refresh the token.
 
     Args:
-        access_token (str): JWT access token, expected in the request headers.
-        refresh_token (str): Optional JWT refresh token, also expected in headers.
+        access_token (str): JWT access token, expected in the request Cookies.
+        refresh_token (str): Optional JWT refresh token, also expected in Cookies.
 
     Returns:
         AccessToken: The decoded payload of the access token if it is valid.
@@ -286,13 +286,13 @@ async def verify_jwt_token(
 
 
 def verify_access_token(
-    access_token: str = Header(None),
+    access_token: str = Cookie(None),
 ) -> AccessToken:
     """
     Verify the validity of an access token.
 
     Args:
-        access_token (str): JWT access token passed in the request header.
+        access_token (str): JWT access token passed in the request Cookie.
 
     Returns:
         AccessToken: Decoded JWT payload containing user authentication details.
