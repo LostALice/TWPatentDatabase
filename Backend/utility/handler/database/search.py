@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, insert, select
 
 from Backend.utility.handler.log_handler import Logger
-from Backend.utility.model.handler.database.scheme import PatentScheme
+from Backend.utility.model.application.history import HistoryRecord
+from Backend.utility.model.handler.database.scheme import HistoryScheme, PatentScheme
 from Backend.utility.model.handler.scraper import PatentInfo
 
 from .database import DatabaseConnection
@@ -20,7 +21,9 @@ class SearchEngineOperation:
         self.database = DatabaseConnection
 
         operation = select(PatentScheme).where(
-            func.to_tsvector("english", PatentScheme.title).bool_op("@@")(func.to_tsquery("english", search_keywords))
+            func.to_tsvector("english", PatentScheme.title).bool_op("@@")(
+                func.to_tsquery("english", search_keywords)
+            )
         )
 
         result = self.database.run_query(operation)
@@ -53,4 +56,19 @@ class SearchEngineOperation:
 
         return patent_list
 
-    def vector_search(self) -> list[PatentInfo]: ...
+    # def vector_search(self) -> list[PatentInfo]: ...
+
+    def log_search_history(
+        self, search_keywords: str, search_result: HistoryRecord
+    ) -> bool:
+        operation = insert(HistoryScheme).values(
+            user_id=search_result.user_id,
+            patent_id=search_result.patent_id,
+            keyword=search_keywords,
+            search_time=search_result.search_time,
+        )
+
+        result = self.database.run_write(operation)
+        self.logger.info(result)
+
+        return result

@@ -14,10 +14,11 @@ router = APIRouter(prefix="/search", dependencies=[Depends(require_user)])
 
 engine = SearchEngineOperation()
 
-
 @router.post("/search/")
 async def search(search_keywords: str) -> SearchResult:
     search_result = engine.full_text_search(search_keywords)
+
+
 
     return SearchResult(
         patents=search_result,
