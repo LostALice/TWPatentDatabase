@@ -20,6 +20,20 @@ class PAFExtractor:
         self.logger = Logger().get_logger()
 
     def process(self, pdf_file_path: str, output_dir: str = "./outout") -> None:
+        """
+        Processes a PDF file to extract text and identify blank pages.
+
+        This method converts each page of the input PDF to an image and applies OCR to extract text.
+        If no text is detected on a page, the page is saved as a PNG image in a designated output directory.
+
+        Args:
+            pdf_file_path (str): The path to the input PDF file.
+            output_dir (str, optional): The directory to save output files. Defaults to "./outout".
+
+        Returns:
+            None: This function does not return a value. It logs the processing information and saves output images and text.
+
+        """
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         image_dir = Path(output_dir) / "blank_pages"
         Path(image_dir).mkdir(parents=True, exist_ok=True)
