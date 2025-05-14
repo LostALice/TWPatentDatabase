@@ -13,7 +13,7 @@ from Backend.utility.error.common import EnvironmentVariableNotSetError
 from Backend.utility.error.database.database import IndexCreationError
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.handler.database.database import DatabaseConfig
-from Backend.utility.model.handler.database.scheme import BaseScheme
+from Backend.utility.model.handler.database.scheme import BaseScheme, VectorScheme
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -198,46 +198,43 @@ class Database:
         """
         self.log_sql(action)
 
-        with self.session() as transaction_session:
-            transaction_session.begin()
+        with self.session() as session:
             try:
-                result = transaction_session.execute(action)
-                transaction_session.commit()
+                result = session.execute(action)
+                session.commit()
                 return result.mappings().all()
             except Exception as e:
                 self.logger.critical("Transaction failed: %s", e)
                 self.logger.critical("SQL statement: %s", action)
-                transaction_session.rollback()
+                session.rollback()
                 return False
 
-    def run_raw_query(self, raw_query: str) -> Sequence[RowMapping] | bool:
+    def run_raw_query(self, raw_query: str, param: dict | None = None) -> Sequence[RowMapping] | bool:
         """
-        Executes a raw SQL string within a transactional database connection.
-
-        For queries that return rows (e.g., SELECT), the result is fetched and returned
-        as a list of RowMapping. For DDL or DML statements (e.g., CREATE, INSERT,
-        UPDATE, DELETE), the method commits the transaction and returns True on success.
-
-        If an error occurs during execution, the transaction is rolled back and False
-        is returned.
+        Execute a raw SQL query using the provided query string and parameters.
 
         Args:
-            raw_query (str): The raw SQL statement to be executed.
+            raw_query (str): The SQL query string to be executed.
+            param (dict | None, optional): A dictionary of parameters to pass to the query. Defaults to None.
 
         Returns:
-            Sequence[RowMapping] | bool: Query result rows if applicable, True on
-            successful execution of non-returning statements, or False if execution fails.
+            Sequence[RowMapping] | bool:
+                - If the query returns rows, a sequence of RowMapping objects is returned.
+                - If the query does not return rows or an error occurs, a boolean is returned:
+                    - True: The query executed successfully without returning data.
+                    - False: The query execution failed.
+
+        Raises:
+            SQLAlchemyError: Raised for any SQL execution errors, with logging of the error and query string.
 
         """
-        action = text(raw_query)
-        # Assume this logs SQL text properly
-        self.log_sql(action)
+        statement = text(raw_query)
+        self.log_sql(statement)
 
         with self.engine.begin() as connection:
             try:
-                result = connection.execute(action)
+                result = connection.execute(statement=statement, parameters=param)
 
-                # If query returns rows (e.g. SELECT), fetch them
                 if result.returns_rows:
                     return result.mappings().all()
 
@@ -246,17 +243,7 @@ class Database:
                 self.logger.critical("Raw query: %s", raw_query)
                 return False
             else:
-                # For CREATE/INSERT/UPDATE/DELETE, just commit
                 return True
-
-    def insert_vector(self, embedding: list[float]) -> bool:
-        with self.engine.begin() as connection:
-            ...
-
-    #   def add_to_pg_vector(session, embeddings):
-    #       embeddings_obj = [Embedding(vector=vector) for vector in embeddings]
-    #       session.add_all(embeddings_obj)
-    #       session.commit()
 
 
 DatabaseConnection = Database()
