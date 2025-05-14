@@ -99,7 +99,7 @@ class PatentScheme(BaseScheme):
     search_vector = mapped_column(TSVECTOR)
 
 
-class PatentVectorScheme(BaseScheme):
+class VectorScheme(BaseScheme):
     __tablename__ = "vector"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

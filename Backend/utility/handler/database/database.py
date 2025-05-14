@@ -249,6 +249,15 @@ class Database:
                 # For CREATE/INSERT/UPDATE/DELETE, just commit
                 return True
 
+    def insert_vector(self, embedding: list[float]) -> bool:
+        with self.engine.begin() as connection:
+            ...
+
+    #   def add_to_pg_vector(session, embeddings):
+    #       embeddings_obj = [Embedding(vector=vector) for vector in embeddings]
+    #       session.add_all(embeddings_obj)
+    #       session.commit()
+
 
 DatabaseConnection = Database()
 
