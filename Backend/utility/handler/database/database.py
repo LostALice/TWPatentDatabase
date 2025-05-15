@@ -13,7 +13,7 @@ from Backend.utility.error.common import EnvironmentVariableNotSetError
 from Backend.utility.error.database.database import IndexCreationError
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.handler.database.database import DatabaseConfig
-from Backend.utility.model.handler.database.scheme import BaseScheme, VectorScheme
+from Backend.utility.model.handler.database.scheme import BaseScheme
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

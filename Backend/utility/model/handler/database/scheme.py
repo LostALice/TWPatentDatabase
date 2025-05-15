@@ -2,7 +2,7 @@
 
 import datetime
 
-from pgvector.sqlalchemy import Vector
+from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -79,7 +79,7 @@ class PatentScheme(BaseScheme):
     __tablename__ = "patent"
 
     # SERIAL PRIMARY KEY in PostgreSQL
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patent_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column()
     application_date: Mapped[int] = mapped_column(Integer)
     publication_date: Mapped[int] = mapped_column(Integer)

@@ -261,6 +261,7 @@ async def verify_jwt_token(
 
     """
     if access_token is None:
+        logger.critical("Missing access token")
         raise HTTPException(status_code=401, detail="Missing access token")
 
     # Try to decode and verify the access token
@@ -271,12 +272,14 @@ async def verify_jwt_token(
 
     # If access token is invalid/expired, check for refresh token
     if refresh_token is None:
+        logger.critical("Access token expired and no refresh token provided")
         raise HTTPException(status_code=401, detail="Access token expired and no refresh token provided")
 
     refresh_payload = verify_refresh_token(refresh_token=refresh_token)
 
     if isinstance(refresh_payload, RefreshToken):
         # Indicate to client to refresh token
+        logger.critical("Access token expired. Use /auth/refresh-token to regenerate.")
         raise HTTPException(
             status_code=401,
             detail="Access token expired. Use /auth/refresh-token to regenerate.",

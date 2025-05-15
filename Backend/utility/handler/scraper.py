@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 
 from Backend.utility.handler.log_handler import Logger
-from Backend.utility.model.handler.scraper import PatentInfo
+from Backend.utility.model.handler.scraper import PatentModel
 
 
 class Scraper:
@@ -121,7 +121,7 @@ class Scraper:
 
         return target_url
 
-    def get_patent_information(self, page_url: str, time_wait: int = 3) -> PatentInfo:
+    def get_patent_information(self, page_url: str, time_wait: int = 3) -> PatentModel:
         """
         Get patent info form page element.
 
@@ -130,7 +130,7 @@ class Scraper:
             time_wait (int): time wait for next page
 
         Returns:
-            PatentInfo: the information of patent info
+            PatentModel: the information of patent info
 
         """
         # enter patent page
@@ -238,7 +238,7 @@ class Scraper:
         else:
             self.logger.error("Failed to download PDF, content-type mismatch.")
 
-        patent_info = PatentInfo(
+        patent_info = PatentModel(
             Title=patent_title,
             ApplicationDate=int(patent_dict["申請日"]),
             PublicationDate=int(patent_dict["公開日"]),

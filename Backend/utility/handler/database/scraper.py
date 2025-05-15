@@ -4,7 +4,7 @@ from sqlalchemy import insert
 
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.handler.database.scheme import PatentScheme
-from Backend.utility.model.handler.scraper import PatentInfo
+from Backend.utility.model.handler.scraper import PatentModel
 
 from .database import DatabaseConnection
 
@@ -14,7 +14,7 @@ class ScraperOperation:
         self.logger = Logger().get_logger()
         self.database = DatabaseConnection
 
-    def insert_patent(self, patent: PatentInfo) -> bool:
+    def insert_patent(self, patent: PatentModel) -> bool:
         operation = insert(PatentScheme).values(
             title=patent.Title,
             application_date=patent.ApplicationDate,

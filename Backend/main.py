@@ -41,23 +41,23 @@ app.add_middleware(
 app.include_router(
     authorization.router,
     prefix="/api/v1",
-    tags=["Authorization", "v1"],
+    tags=["Authorization"],
 )
 app.include_router(
     search.router,
     prefix="/api/v1",
-    tags=["Search", "v1"],
+    tags=["Search"],
 )
 
 app.include_router(
     history.router,
     prefix="/api/v1",
-    tags=["History", "v1"],
+    tags=["History"],
 )
 app.include_router(
     report.router,
     prefix="/api/v1",
-    tags=["Report", "v1"],
+    tags=["Report"],
 )
 
 
@@ -76,5 +76,5 @@ if GLOBAL_DEBUG_MODE == "True":
     app.include_router(
         dev.router,
         prefix="/api/v1",
-        tags=["Test", "v1"],
+        tags=["Test"],
     )

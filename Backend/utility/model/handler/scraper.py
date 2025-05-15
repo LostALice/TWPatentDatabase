@@ -3,7 +3,7 @@
 from pydantic import BaseModel
 
 
-class PatentInfo(BaseModel):
+class PatentModel(BaseModel):
     Title: str = ""
     ApplicationDate: int = 0
     PublicationDate: int = 0
@@ -19,3 +19,7 @@ class PatentInfo(BaseModel):
     KindCodes: str = ""
     PatentURL: str = ""
     PatentFilePath: str = ""
+
+
+class PatentInfoModel(PatentModel):
+    Patent_id: int
