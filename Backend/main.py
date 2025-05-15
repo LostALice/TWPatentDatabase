@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from Backend.application.auth import authorization
 from Backend.application.history import history
 from Backend.application.report import report
-from Backend.application.result import result
 from Backend.application.search import search
 from Backend.utility.handler.log_handler import Logger
 
@@ -49,11 +48,7 @@ app.include_router(
     prefix="/api/v1",
     tags=["Search", "v1"],
 )
-app.include_router(
-    result.router,
-    prefix="/api/v1",
-    tags=["Result", "v1"],
-)
+
 app.include_router(
     history.router,
     prefix="/api/v1",
@@ -77,6 +72,7 @@ async def add_process_time_header(request: Request, call_next):
 
 if GLOBAL_DEBUG_MODE == "True":
     from Backend.application.dev import dev
+
     app.include_router(
         dev.router,
         prefix="/api/v1",
