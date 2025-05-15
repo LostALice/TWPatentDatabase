@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
+from Backend.utility.error.database.database import InsertError
 from Backend.utility.handler.database.database import DatabaseConnection
 from Backend.utility.model.application.history import LoginHistoryRecord, SearchHistoryRecord
 from Backend.utility.model.handler.database.scheme import HistoryScheme, LoginScheme
@@ -46,3 +47,14 @@ class HistoryOperation:
             user_id=result[0]["LoginScheme"].user_id,
             last_login_time=result[0]["LoginScheme"].access_token_created_at,
         )
+
+    def insert_search_history(self, user_id: int, patent_id: int, keyword: str) -> bool:
+        operation = insert(HistoryScheme).values(user_id=user_id, patent_id=patent_id, keyword=keyword)
+
+        success = self.database.run_write(operation)
+
+        if not success:
+            msg = f"Failed to insert History: {user_id}"
+            raise InsertError(msg)
+
+        return success

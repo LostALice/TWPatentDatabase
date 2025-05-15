@@ -11,6 +11,6 @@ from Backend.application.dependency.dependency import (
 router = APIRouter(prefix="/result", dependencies=[Depends(require_user)])
 
 
-@router.get("/result/")
+@router.get("/")
 async def result():
     return "result"
