@@ -144,8 +144,8 @@ class AuthorizationOperation:
         if existing_role_id:
             return existing_role_id
 
-        insert_stmt = insert(RoleScheme).values(role_name=role_name, role_description=role_description)
-        success = self.database.run_write(insert_stmt)
+        operation = insert(RoleScheme).values(role_name=role_name, role_description=role_description)
+        success = self.database.run_write(operation)
 
         if not success:
             msg = f"Failed to insert new role: {role_name}"
