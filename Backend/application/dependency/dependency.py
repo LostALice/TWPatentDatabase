@@ -34,7 +34,6 @@ logger = Logger().get_logger()
 
 # development
 GLOBAL_DEBUG_MODE = getenv("DEBUG")
-logger.info("Global Debug Mode: %s", GLOBAL_DEBUG_MODE)
 
 if GLOBAL_DEBUG_MODE is None or GLOBAL_DEBUG_MODE == "True":
     from dotenv import load_dotenv

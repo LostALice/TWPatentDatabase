@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from Backend.application.auth import authorization
 from Backend.application.history import history
 from Backend.application.report import report
+from Backend.application.response import response
 from Backend.application.search import search
 from Backend.utility.handler.log_handler import Logger
 
@@ -48,7 +49,6 @@ app.include_router(
     prefix="/api/v1",
     tags=["Search"],
 )
-
 app.include_router(
     history.router,
     prefix="/api/v1",
@@ -58,6 +58,11 @@ app.include_router(
     report.router,
     prefix="/api/v1",
     tags=["Report"],
+)
+app.include_router(
+    response.router,
+    prefix="/api/v1",
+    tags=["Response"],
 )
 
 

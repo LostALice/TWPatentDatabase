@@ -6,29 +6,31 @@ from sqlalchemy import insert, select
 
 from Backend.utility.error.database.database import InsertError
 from Backend.utility.handler.database.database import DatabaseConnection
+from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.application.history import LoginHistoryRecord, SearchHistoryRecord
-from Backend.utility.model.handler.database.scheme import HistoryScheme, LoginScheme
+from Backend.utility.model.handler.database.scheme import LoginScheme, SearchHistoryScheme
 
 
 class HistoryOperation:
     def __init__(self) -> None:
         self.database = DatabaseConnection
+        self.logger = Logger().get_logger()
 
     def fetch_search_history(self, user_id: int) -> list[SearchHistoryRecord]:
-        operation = select(HistoryScheme.user_id, HistoryScheme.patent_id, HistoryScheme.search_time).where(
-            HistoryScheme.user_id == user_id
+        operation = select(SearchHistoryScheme.user_id, SearchHistoryScheme.patent_id, SearchHistoryScheme.search_time).where(
+            SearchHistoryScheme.user_id == user_id
         )
 
         result = self.database.run_query(operation)
 
+        self.logger.debug(result)
         if isinstance(result, bool) or result == []:
             return []
-
         return [
             SearchHistoryRecord(
-                user_id=r["HistoryScheme"].user_id,
-                patent_id=r["HistoryScheme"].patent_id,
-                search_time=r["HistoryScheme"].search_time,
+                user_id=r["SearchHistoryScheme"].user_id,
+                patent_id=r["SearchHistoryScheme"].patent_id,
+                search_time=r["SearchHistoryScheme"].search_time,
             )
             for r in result
         ]
@@ -39,6 +41,7 @@ class HistoryOperation:
         )
 
         result = self.database.run_query(operation)
+        self.logger.debug(result)
 
         if isinstance(result, bool) or result == []:
             return None
@@ -49,7 +52,7 @@ class HistoryOperation:
         )
 
     def insert_search_history(self, user_id: int, patent_id: int, keyword: str) -> bool:
-        operation = insert(HistoryScheme).values(user_id=user_id, patent_id=patent_id, keyword=keyword)
+        operation = insert(SearchHistoryScheme).values(user_id=user_id, patent_id=patent_id, keyword=keyword)
 
         success = self.database.run_write(operation)
 

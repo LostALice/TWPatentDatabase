@@ -6,7 +6,7 @@ from sqlalchemy import func, insert, select
 
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.application.history import SearchHistoryRecord
-from Backend.utility.model.handler.database.scheme import HistoryScheme, PatentScheme
+from Backend.utility.model.handler.database.scheme import PatentScheme, SearchHistoryScheme
 from Backend.utility.model.handler.scraper import PatentInfoModel
 
 from .database import DatabaseConnection
@@ -58,7 +58,7 @@ class SearchEngineOperation:
     # def vector_search(self) -> list[PatentModel]: ...
 
     def log_search_history(self, search_keywords: str, search_result: SearchHistoryRecord) -> bool:
-        operation = insert(HistoryScheme).values(
+        operation = insert(SearchHistoryScheme).values(
             user_id=search_result.user_id,
             patent_id=search_result.patent_id,
             keyword=search_keywords,

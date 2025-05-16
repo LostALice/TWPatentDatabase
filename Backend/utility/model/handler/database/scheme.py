@@ -111,7 +111,25 @@ class VectorScheme(BaseScheme):
     is_image: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-class HistoryScheme(BaseScheme):
+class ChatHistoryScheme(BaseScheme):
+    __tablename__ = "chat"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    response: Mapped[str] = mapped_column(Text, nullable=False)
+    query_time: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+
+    user = relationship("UserScheme", backref="history")
+
+    def __repr__(self):
+        return f"<ChatHistory(id={self.id}, user_id={self.user_id}, time={self.query_time})>"
+
+
+class SearchHistoryScheme(BaseScheme):
     __tablename__ = "history"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
@@ -130,7 +148,7 @@ class HistoryScheme(BaseScheme):
 
     def __repr__(self):
         return (
-            f"<History(id={self.id}, user_id={self.user_id}, "
+            f"<SearchHistory(id={self.id}, user_id={self.user_id}, "
             f"keyword={self.keyword!r}, patent_id={self.patent_id}, "
             f"time={self.search_time})>"
         )

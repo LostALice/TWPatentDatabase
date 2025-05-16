@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateTable
 
 from Backend.utility.error.common import EnvironmentVariableNotSetError
-from Backend.utility.error.database.database import IndexCreationError
+from Backend.utility.error.database.database import IndexCreationError, NoConnectionError
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.handler.database.database import DatabaseConfig
 from Backend.utility.model.handler.database.scheme import BaseScheme
@@ -23,8 +23,6 @@ if TYPE_CHECKING:
 
 # development
 GLOBAL_DEBUG_MODE = getenv("DEBUG")
-logger = Logger().get_logger()
-logger.info("Global Debug Mode: %s", GLOBAL_DEBUG_MODE)
 if GLOBAL_DEBUG_MODE is None or GLOBAL_DEBUG_MODE == "True":
     from dotenv import load_dotenv
 
@@ -85,6 +83,8 @@ class Database:
             self.__clear_database()
             self.__initialize_database()
 
+        if not self.test_connection():
+            raise NoConnectionError(self.DATABASE_URL)
         self.logger.info("| Loaded Database |")
 
     def __initialize_database(self) -> None:
@@ -118,6 +118,16 @@ class Database:
 
     def __clear_database(self) -> None:
         BaseScheme.metadata.drop_all(self.engine)
+
+    def test_connection(self) -> bool:
+        try:
+            with self.engine.begin() as connection:
+                result = bool(connection.execute(statement=text("SELECT 1")))
+                self.logger.info("Testing connection: %s", result)
+                return result
+        except Exception:
+            self.logger.critical("No Connection: %s", self.DATABASE_URL)
+            return False
 
     def log_sql(self, sql_statement) -> None:
         """

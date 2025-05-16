@@ -2,10 +2,10 @@
 
 import numpy as np
 import torch
-import torchvision.transforms as T  # noqa: N812
+import torchvision.transforms as T  # type: ignore[import-untyped] # noqa: N812
 
 # from PIL import Image
-from transformers import AutoFeatureExtractor, AutoImageProcessor, AutoModel
+from transformers import AutoFeatureExtractor, AutoImageProcessor, AutoModel  # type: ignore[import-untyped]
 
 
 class ImageFeatureExtractor:
@@ -31,17 +31,13 @@ class ImageFeatureExtractor:
                 T.Resize(int((256 / 224) * self.extractor.size["height"])),
                 T.CenterCrop(self.extractor.image_size["height"]),
                 T.ToTensor(),
-                T.Normalize(
-                    mean=self.extractor.image_mean, std=self.extractor.image_std
-                ),
+                T.Normalize(mean=self.extractor.image_mean, std=self.extractor.image_std),
             ]
         )
 
         device = self.model.device
 
-        image_batch_transformed = torch.stack(
-            [transformation_chain(image) for image in images]
-        )
+        image_batch_transformed = torch.stack([transformation_chain(image) for image in images])
 
         new_batch = {"pixel_values": image_batch_transformed.to(device)}
 
