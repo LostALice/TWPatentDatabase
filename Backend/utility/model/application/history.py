@@ -16,3 +16,8 @@ class SearchHistoryRecord(Record):
 
 class LoginHistoryRecord(Record):
     last_login_time: datetime
+
+
+class ResponseHistoryRecord(Record):
+    query: str
+    response: str

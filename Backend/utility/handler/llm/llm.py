@@ -125,6 +125,33 @@ class LLMResponser:
 
         return str(message_dump["content"]), token_count
 
+    def embed_text(self, text: str) -> list[float]:
+        """
+        Encode the input text into a vector embedding using OpenAI's API.
+
+        This method sends the input text to OpenAI's embedding service and returns
+        the resulting vector representation.
+
+        Args:
+            text (str): The input text to be encoded into a vector embedding.
+
+        Returns:
+            list[float]: A list of floats representing the vector embedding of the input text.
+
+        Raises:
+            Exception: If there's an error in calling the OpenAI API or processing the response.
+
+        """
+        if self._openai_embedding_model is None:
+            msg = "OPENAI_EMBEDDING_MODEL"
+            raise EnvironmentVariableNotSetError(msg)
+
+        response = self.client.embeddings.create(
+            model=self._openai_embedding_model,
+            input=text,
+        )
+        return response.data[0].embedding
+
 
 if __name__ == "__main__":
     ...

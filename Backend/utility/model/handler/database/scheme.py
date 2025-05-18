@@ -3,9 +3,9 @@
 import datetime
 
 from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class BaseScheme(DeclarativeBase): ...
@@ -65,7 +65,7 @@ class LoginScheme(BaseScheme):
         nullable=False,
     )
 
-    user = relationship("UserScheme", backref="logins")
+    # user = relationship("UserScheme", backref="logins")
 
     def __repr__(self):
         return (
@@ -80,7 +80,7 @@ class PatentScheme(BaseScheme):
 
     # SERIAL PRIMARY KEY in PostgreSQL
     patent_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    title: Mapped[str] = mapped_column()
+    title: Mapped[str] = mapped_column(Text, nullable=False)
     application_date: Mapped[int] = mapped_column(Integer)
     publication_date: Mapped[int] = mapped_column(Integer)
     application_number: Mapped[str] = mapped_column(String(100))
@@ -99,20 +99,28 @@ class PatentScheme(BaseScheme):
     search_vector = mapped_column(TSVECTOR)
 
 
-class VectorScheme(BaseScheme):
-    __tablename__ = "vector"
+class ContentVectorScheme(BaseScheme):
+    __tablename__ = "patent_content_vector"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    patent_id: Mapped[int] = mapped_column(
-        ForeignKey("patent.id", ondelete="CASCADE"),
-    )
+    patent_id: Mapped[int] = mapped_column(ForeignKey("patent.patent_id", ondelete="CASCADE"), nullable=False)
     page: Mapped[int] = mapped_column(Integer, nullable=False)
-    embedding: Mapped[int] = mapped_column(Vector(1024), nullable=False)
-    is_image: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[int] = mapped_column(Vector(1536), nullable=False)
 
 
-class ChatHistoryScheme(BaseScheme):
-    __tablename__ = "chat"
+class ImageVectorScheme(BaseScheme):
+    __tablename__ = "patent_image_vector"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patent_id: Mapped[int] = mapped_column(ForeignKey("patent.patent_id", ondelete="CASCADE"), nullable=False)
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    image_path: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[int] = mapped_column(Vector(768), nullable=False)
+
+
+class ResponseHistoryScheme(BaseScheme):
+    __tablename__ = "response"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
@@ -121,9 +129,10 @@ class ChatHistoryScheme(BaseScheme):
     )
     query: Mapped[str] = mapped_column(Text, nullable=False)
     response: Mapped[str] = mapped_column(Text, nullable=False)
+    token: Mapped[int] = mapped_column(Integer)
     query_time: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
 
-    user = relationship("UserScheme", backref="history")
+    # user = relationship("UserScheme", backref="history")
 
     def __repr__(self):
         return f"<ChatHistory(id={self.id}, user_id={self.user_id}, time={self.query_time})>"
@@ -131,20 +140,21 @@ class ChatHistoryScheme(BaseScheme):
 
 class SearchHistoryScheme(BaseScheme):
     __tablename__ = "history"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False,
     )
     patent_id: Mapped[int] = mapped_column(
-        ForeignKey("patent.id", ondelete="CASCADE"),
+        ForeignKey("patent.patent_id", ondelete="CASCADE"),
         nullable=False,
     )
     keyword: Mapped[str] = mapped_column(Text, nullable=False)
     search_time: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
 
-    user = relationship("UserScheme", backref="history")
-    patent = relationship("PatentScheme", backref="history")
+    # user = relationship("UserScheme", backref="history")
+    # patent = relationship("PatentScheme", backref="history")
 
     def __repr__(self):
         return (

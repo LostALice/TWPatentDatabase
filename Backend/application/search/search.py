@@ -1,27 +1,36 @@
 # Code by AkinoAlice@TyrantRey
 
+from __future__ import annotations
+
+import re
 from datetime import datetime, timezone
+from os import getenv
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from Backend.application.dependency.dependency import (
-    require_user,
-)
+from Backend.application.dependency.dependency import require_user
+from Backend.utility.error.common import EnvironmentVariableNotSetError
 from Backend.utility.handler.database.history import HistoryOperation
 from Backend.utility.handler.database.scraper import ScraperOperation
 from Backend.utility.handler.database.search import SearchEngineOperation
+from Backend.utility.handler.llm.llm import LLMResponser
 from Backend.utility.handler.log_handler import Logger
+from Backend.utility.handler.pdf_extractor import PDFExtractor
 from Backend.utility.handler.scraper import Scraper
 from Backend.utility.model.application.dependency.dependency import AccessToken
-from Backend.utility.model.application.search import SearchResult
+from Backend.utility.model.application.search import PDFChunkEmbedding, PDFInfo, SearchResult
 
 router = APIRouter(prefix="/search", dependencies=[Depends(require_user)])
+# router = APIRouter(prefix="/search")
 
-engine = SearchEngineOperation()
+logger = Logger().get_logger()
+search_database_client = SearchEngineOperation()
 history_database_client = HistoryOperation()
 scraper_database_client = ScraperOperation()
-logger = Logger().get_logger()
+llm_client = LLMResponser()
+pdf_extractor = PDFExtractor()
 
 
 @router.post("/")
@@ -44,7 +53,7 @@ async def search(search_keywords: str, access_token: Annotated[AccessToken, Depe
             - search_time (datetime): UTC timestamp when the search was executed.
 
     """
-    patents = engine.full_text_search(search_keywords)
+    patents = search_database_client.full_text_search(search_keywords)
 
     if patents:
         for patent in patents:
@@ -59,30 +68,98 @@ async def search(search_keywords: str, access_token: Annotated[AccessToken, Depe
 
 
 @router.post("/scraper/")
-async def download_patent(patent_keyword: str = "鞋面") -> bool:
+async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
     """
-    Scrape patent information for a given keyword and store it in the database.
-
-    This asynchronous endpoint initializes the scraper, fetches patent URLs
-    for the first page of results matching `patent_keyword`, retrieves detailed
-    information for each patent, logs it, and inserts each record into the
-    database. Finally, it tears down the scraper instance.
+    Search for patents matching the given keyword, download the first result's PDF,
+    run OCR on it page by page, embed each text chunk, and store the embeddings.
 
     Args:
-        patent_keyword (str): The keyword to search patents for. Defaults to "鞋面".
+        patent_keyword (str):
+            The search term used to find relevant patents (default: "鞋面").
+            Must be a non-empty string representing the patent title or abstract keyword.
 
     Returns:
-        bool: True if the scraping process completed successfully.
+        List[int | None]:
+            A list containing the database IDs of the successfully inserted patents.
+            If no patents were inserted, returns an empty list.
+
+    Raises:
+        EnvironmentVariableNotSetError:
+            If the POPPLER_PATH environment variable is not set, since it's required
+            for PDF text extraction via poppler's tools.
+        ScraperError:
+            If the scraper fails to initialize or fetch patent URLs.
+        PDFExtractionError:
+            If OCR fails on any PDF.
+        DatabaseInsertionError:
+            If inserting patent metadata or embeddings into the database fails.
+    Side Effects:
+        - Initializes and destroys a headless browser session (Scraper).
+        - Downloads at most one patent PDF per request (due to the `break` in the loop).
+        - Writes temporary OCR output files to disk.
+        - Logs detailed info at INFO and DEBUG levels.
 
     """
     scraper = Scraper()
     scraper.create_scraper()
     scraper.keyword = patent_keyword
 
-    for page_number in range(1, 2):
-        for url in scraper.get_patent_url(page=page_number):
-            patent_data = scraper.get_patent_information(url)
-            logger.info(patent_data)
-            scraper_database_client.insert_patent(patent=patent_data)
+    poppler_path = getenv("POPPLER_PATH")
+
+    if poppler_path is None:
+        msg = "POPPLER_PATH"
+        raise EnvironmentVariableNotSetError(msg)
+
+    url_list = scraper.get_patent_url(page=1)
+
+    patent_infos: list[PDFInfo] = []
+    for url in url_list:
+        patent_data = scraper.get_patent_information(url)
+        logger.info(patent_data)
+        patent_id = scraper_database_client.insert_patent(patent=patent_data)
+        if patent_id is None:
+            continue
+
+        patent_infos.append(
+            PDFInfo(patent_id=patent_id, patent_file_path=patent_data.PatentFilePath, patent_title=patent_data.Title)
+        )
+
+    logger.info(patent_infos)
     scraper.destroy_scraper()
-    return True
+
+    results = pdf_extractor.process_multiple([info.patent_file_path for info in patent_infos], poppler_path)
+    logger.debug("| Finish OCR |")
+
+    regex_pattern = r"---\s*Page\s*(\d+)\s*---\s*([\s\S]*?)(?=(?:---\s*Page\s*\d+\s*---)|$)"
+    for index, items in enumerate(results.items()):
+        pdf_path, output_path = items[0], items[1]
+        if output_path is None:
+            continue
+
+        with Path.open(Path(output_path), mode="r", encoding="utf-8") as f:
+            text = f.read()
+            text_split = re.findall(pattern=regex_pattern, string=text)
+
+        pdf_chunk_embeddings: list[PDFChunkEmbedding] = [
+            PDFChunkEmbedding(
+                patent_id=patent_infos[index].patent_id,
+                page_number=chunk[0],
+                content=chunk[1],
+                embedding=llm_client.embed_text(chunk[1]),
+            )
+            for chunk in text_split
+        ]
+        logger.info(pdf_chunk_embeddings)
+
+        for pdf_chunk_embedding in pdf_chunk_embeddings:
+            search_database_client.insert_vector(
+                embedding=pdf_chunk_embedding.embedding,
+                patent_id=patent_infos[index].patent_id,
+                page=pdf_chunk_embedding.page_number,
+                content=pdf_chunk_embedding.content,
+                is_image=False,
+            )
+        msg = f"Successfully processed {pdf_path} -> {output_path}"
+        logger.info(msg)
+
+    return [patent_info.patent_id for patent_info in patent_infos]

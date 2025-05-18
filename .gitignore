@@ -3,7 +3,9 @@
 **/__pycache__/
 
 **/patent/**
+**/pdf_output/**
 **/logs/**
+**/test/**
 
 *.log
 test.*

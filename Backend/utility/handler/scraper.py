@@ -267,7 +267,6 @@ class Scraper:
     def destroy_scraper(self) -> None:
         """Stop the driver."""
         self.driver.quit()
-        self.driver.close()
 
 
 if __name__ == "__main__":

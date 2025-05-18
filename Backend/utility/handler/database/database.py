@@ -1,16 +1,21 @@
 # Code by AkinoAlice@TyrantRey
 
+# SECURITY WARNING: Database connection is using the 'root' account.
+# This is not recommended—please configure and use a dedicated, least-privileged database user instead.
+# Develop and test are running as root.
+# Use a non-root user account to ensure correct permission testing.
+
 from __future__ import annotations
 
 from os import getenv
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateTable
 
 from Backend.utility.error.common import EnvironmentVariableNotSetError
-from Backend.utility.error.database.database import IndexCreationError, NoConnectionError
+from Backend.utility.error.database.database import ExtensionCreationError, IndexCreationError, NoConnectionError
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.handler.database.database import DatabaseConfig
 from Backend.utility.model.handler.database.scheme import BaseScheme
@@ -32,7 +37,6 @@ if GLOBAL_DEBUG_MODE is None or GLOBAL_DEBUG_MODE == "True":
 class Database:
     def __init__(self) -> None:
         self.logger = Logger().get_logger()
-
         self.logger.info("| Start Loading Database |")
         self.logger.info("| Getting Database Env |")
 
@@ -79,7 +83,7 @@ class Database:
         self.session = sessionmaker(bind=self.engine)
 
         if self._POSTGRESQL_DEBUG == "True":
-            self.logger.warning("Deleting Exist Database")
+            self.logger.info("Deleting Exist Database")
             self.__clear_database()
             self.__initialize_database()
 
@@ -102,6 +106,15 @@ class Database:
             IndexCreationError: If the full-text index creation fails.
 
         """
+        # vector extension
+        create_vector_extension = """CREATE EXTENSION IF NOT EXISTS vector;"""
+        is_vector_extension = self.run_raw_query(create_vector_extension)
+
+        if not is_vector_extension:
+            vector_extension = "vector extension"
+            raise ExtensionCreationError(vector_extension)
+        self.logger.info("Created extension: vector")
+
         for table in BaseScheme.metadata.sorted_tables:
             self.logger.debug(str(CreateTable(table).compile(self.engine)))
         BaseScheme.metadata.create_all(self.engine)
@@ -113,10 +126,10 @@ class Database:
         if not is_index_created:
             patent_index = "patent_search_idx"
             raise IndexCreationError(patent_index)
-
         self.logger.info("Created index: patent_search_idx")
 
     def __clear_database(self) -> None:
+        self.logger.warning("Dropping Database")
         BaseScheme.metadata.drop_all(self.engine)
 
     def test_connection(self) -> bool:
@@ -219,7 +232,7 @@ class Database:
                 session.rollback()
                 return False
 
-    def run_raw_query(self, raw_query: str, param: dict | None = None) -> Sequence[RowMapping] | bool:
+    def run_raw_query(self, raw_query: str, param: dict[str, Any] | None = None) -> Sequence[RowMapping] | bool:
         """
         Execute a raw SQL query using the provided query string and parameters.
 
@@ -241,9 +254,10 @@ class Database:
         statement = text(raw_query)
         self.log_sql(statement)
 
-        with self.engine.begin() as connection:
+        with self.engine.begin() as session:
             try:
-                result = connection.execute(statement=statement, parameters=param)
+                result = session.execute(statement=statement, parameters=param)
+                session.commit()
 
                 if result.returns_rows:
                     return result.mappings().all()
