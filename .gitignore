@@ -4,6 +4,7 @@
 
 **/patent/**
 **/logs/**
+**/test/**
 
 *.log
 test.*
