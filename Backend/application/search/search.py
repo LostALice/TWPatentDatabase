@@ -21,6 +21,7 @@ from Backend.utility.handler.pdf_extractor import PDFExtractor
 from Backend.utility.handler.scraper import Scraper
 from Backend.utility.model.application.dependency.dependency import AccessToken
 from Backend.utility.model.application.search import PDFChunkEmbedding, PDFInfo, SearchResult
+from Backend.utility.model.handler.scraper import PatentInfoModel
 
 router = APIRouter(prefix="/search", dependencies=[Depends(require_user)])
 # router = APIRouter(prefix="/search")
@@ -33,8 +34,10 @@ llm_client = LLMResponser()
 pdf_extractor = PDFExtractor()
 
 
-@router.post("/")
-async def search(search_keywords: str, access_token: Annotated[AccessToken, Depends(require_user)]) -> SearchResult:
+@router.get("/full-text")
+async def full_text_search(
+    search_keywords: str, access_token: Annotated[AccessToken, Depends(require_user)]
+) -> SearchResult:
     """
     Search patents by keyword, record the search history, and return the results.
 
@@ -67,6 +70,23 @@ async def search(search_keywords: str, access_token: Annotated[AccessToken, Depe
     )
 
 
+@router.get("/graph")
+async def graph_search(patent_id: int) -> list[PatentInfoModel]:
+    """
+    Find and return the top-3 most similar patents by embedding cosine distance.
+
+    Args:
+        patent_id (int): The ID of the patent to query.
+
+    Returns:
+        List[PatentInfoModel]: A list of up to three PatentInfoModel objects.
+
+    """
+    patent_ids = search_database_client.search_patent_similarity_by_id(patent_id=patent_id)
+
+    return search_database_client.search_patent_by_id(patent_ids)
+
+
 @router.post("/scraper/")
 async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
     """
@@ -93,11 +113,6 @@ async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
             If OCR fails on any PDF.
         DatabaseInsertionError:
             If inserting patent metadata or embeddings into the database fails.
-    Side Effects:
-        - Initializes and destroys a headless browser session (Scraper).
-        - Downloads at most one patent PDF per request (due to the `break` in the loop).
-        - Writes temporary OCR output files to disk.
-        - Logs detailed info at INFO and DEBUG levels.
 
     """
     scraper = Scraper()
@@ -149,7 +164,6 @@ async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
             )
             for chunk in text_split
         ]
-        logger.info(pdf_chunk_embeddings)
 
         for pdf_chunk_embedding in pdf_chunk_embeddings:
             search_database_client.insert_vector(

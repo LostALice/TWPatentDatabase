@@ -43,7 +43,7 @@ class PDFExtractor:
         """
         self.logger.info("Start process pdf: %s", pdf_file_path)
         pdf_filename = pdf_file_path.split("/")[-1]
-        pdf_file_id = pdf_filename.split("0")[0]
+        pdf_file_id = pdf_filename.split(".")[0]
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
         images = convert_from_path(pdf_file_path, dpi=300, poppler_path=poppler_path)

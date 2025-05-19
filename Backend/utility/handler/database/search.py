@@ -6,10 +6,7 @@ from sqlalchemy import func, insert, select
 
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.application.history import SearchHistoryRecord
-from Backend.utility.model.handler.database.scheme import (
-    PatentScheme,
-    SearchHistoryScheme,
-)
+from Backend.utility.model.handler.database.scheme import ContentVectorScheme, PatentScheme, SearchHistoryScheme
 from Backend.utility.model.handler.scraper import PatentInfoModel
 
 from .database import DatabaseConnection
@@ -147,3 +144,111 @@ class SearchEngineOperation:
             )
 
         return not isinstance(result, bool)
+
+    def search_patent_similarity_by_vector(self, embedding_vector: list[float]) -> list[int]:
+        """
+        Retrieve the top-3 most similar patent IDs to the given embedding vector.
+
+        Args:
+            embedding_vector (list[float]): The embedding vector to use as the similarity query.
+
+        Returns:
+            list[int]: A list of up to three patent IDs most similar to the input vector.
+                    Returns an empty list if no similar patents are found.
+
+        Raises:
+            DatabaseError: If the similarity search fails.
+
+        """
+        search_operation = (
+            select(ContentVectorScheme.patent_id)
+            .order_by(ContentVectorScheme.embedding.cosine_distance(embedding_vector).label("dist"))
+            .limit(3)
+        )
+
+        target_patents = self.database.run_query_vector(search_operation)
+        self.logger.info("Found similar patent IDs: %s", target_patents)
+
+        if isinstance(target_patents, bool) or target_patents == []:
+            return []
+
+        return [patent["ContentVectorScheme"].patent_id for patent in target_patents]
+
+    def search_patent_similarity_by_id(self, patent_id: int) -> set[int]:
+        """
+        Find the top-3 most similar patents to a given patent, based on embedding cosine distance.
+
+        Args:
+            patent_id (int): The ID of the patent to use as the similarity query.
+
+        Returns:
+            set[int]: A set of patent IDs corresponding to the three most similar patents by embedding.
+
+        Raises:
+            DatabaseError: If the embedding query or similarity search fails.
+
+        """
+        embedding_query = select(ContentVectorScheme.embedding).where(ContentVectorScheme.patent_id == patent_id)
+        target_embeddings = self.database.run_query(embedding_query)
+        self.logger.info(target_embeddings)
+
+        patent_list: set[int] = set()
+        for embedding in target_embeddings:
+            search = (
+                select(ContentVectorScheme.patent_id)
+                .order_by(
+                    ContentVectorScheme.embedding.cosine_distance(embedding["embedding"]).label("dist"),
+                )
+                .limit(3)
+            )
+
+            patent_id_list = set(self.database.run_query_vector(search))
+            self.logger.info(patent_id_list)
+            patent_list.add(patent_id)
+
+        return patent_list
+
+    def search_patent_by_id(self, patent_ids: set[int]) -> list[PatentInfoModel]:
+        """
+        Retrieve detailed patent information for a set of patent IDs.
+
+        Args:
+            patent_ids (set[int]): A collection of patent IDs to look up.
+
+        Returns:
+            list[PatentInfoModel]: A list of PatentInfoModel instances containing metadata
+            for each found patent. Returns an empty list if none are found.
+
+        Raises:
+            DatabaseError: If the database query fails.
+
+        """
+        operation = select(PatentScheme).where(PatentScheme.patent_id.in_(patent_ids))
+
+        patents = self.database.run_query(operation)
+        self.logger.info(patents)
+
+        if isinstance(patents, bool) or patents == []:
+            return []
+
+        return [
+            PatentInfoModel(
+                Patent_id=patent["PatentScheme"].patent_id,
+                Title=patent["PatentScheme"].title,
+                ApplicationDate=patent["PatentScheme"].application_date,
+                PublicationDate=patent["PatentScheme"].publication_date,
+                ApplicationNumber=patent["PatentScheme"].application_number,
+                PublicationNumber=patent["PatentScheme"].publication_number,
+                Applicant=patent["PatentScheme"].applicant,
+                Inventor=patent["PatentScheme"].inventor,
+                Attorney=patent["PatentScheme"].attorney,
+                Priority=patent["PatentScheme"].priority,
+                GazetteIPC=patent["PatentScheme"].gazette_ipc,
+                IPC=patent["PatentScheme"].ipc,
+                GazetteVolume=patent["PatentScheme"].gazette_volume,
+                KindCodes=patent["PatentScheme"].kind_codes,
+                PatentURL=patent["PatentScheme"].patent_url,
+                PatentFilePath=patent["PatentScheme"].patent_file_path,
+            )
+            for patent in patents
+        ]

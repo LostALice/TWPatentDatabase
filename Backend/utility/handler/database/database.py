@@ -269,6 +269,29 @@ class Database:
             else:
                 return True
 
+    def run_query_vector(self, query: Select) -> Sequence[RowMapping]:
+        """
+        A vector version for executes a SELECT query and returns the result as a list of RowMapping.
+
+        Args:
+            query (Select): SQLAlchemy Select query.
+
+        Returns:
+            Sequence[RowMapping]: List of result rows.
+
+        """
+        self.log_sql(query)
+
+        with self.session() as session:
+            try:
+                result = session.scalars(query)
+                session.commit()
+                return result.all()
+            except Exception as e:
+                self.logger.critical("Query failed: %s", e)
+                self.logger.critical("SQL statement: %s", query)
+                return []
+
 
 DatabaseConnection = Database()
 
