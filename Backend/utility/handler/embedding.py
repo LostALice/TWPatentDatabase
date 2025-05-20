@@ -1,8 +1,9 @@
 # Code by AkinoAlice@TyrantRey
 
-from log_handler import Logger
 from PIL import Image
 from transformers import CLIPModel, CLIPProcessor
+
+from Backend.utility.handler.log_handler import Logger
 
 
 class ImageEmbedding:
