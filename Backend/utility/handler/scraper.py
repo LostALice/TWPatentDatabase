@@ -16,12 +16,13 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 
-# from Backend.utility.error.scraper import HTTPUnexpectedSchemesError
-# from Backend.utility.handler.log_handler import Logger
-# from Backend.utility.model.handler.scraper import PatentModel
-from utility.error.scraper import HTTPUnexpectedSchemesError
-from utility.handler.log_handler import Logger
-from utility.model.handler.scraper import PatentModel
+from Backend.utility.error.scraper import HTTPUnexpectedSchemesError
+from Backend.utility.handler.log_handler import Logger
+from Backend.utility.model.handler.scraper import PatentImageInfoModel, PatentImageModel, PatentModel
+
+# from utility.error.scraper import HTTPUnexpectedSchemesError
+# from utility.handler.log_handler import Logger
+# from utility.model.handler.scraper import PatentModel
 
 
 class PatentScraper:
@@ -276,7 +277,7 @@ class PatentScraper:
         self.logger.info(patent_info)
         return patent_info
 
-    def get_patent_image(self, page_url: str) -> list[str]:
+    def get_patent_image(self, page_url: str) -> PatentImageInfoModel:
         self.driver.get(page_url)
 
         WebDriverWait(self.driver, 10).until(
@@ -305,7 +306,7 @@ class PatentScraper:
             patent_image_dir.mkdir(parents=True, exist_ok=True)
 
         downloaded_hashes = set()
-        image_path_list: list[str] = []
+        image_list: list[PatentImageModel] = []
         for img_idx, link in enumerate(patent_image_links, 1):
             try:
                 response = requests.get(link, timeout=self.time_wait)
@@ -320,17 +321,20 @@ class PatentScraper:
                     downloaded_hashes.add(img_hash)
 
                     img = Image.open(BytesIO(img_bytes)).convert("RGB")
-                    filename = patent_image_dir / f"{img_idx}.png"
-                    img.save(filename, format="PNG")
-                    self.logger.info("Image saved: %s", filename)
-                    image_path_list.append(str(filename))
+                    image_file_path = patent_image_dir / f"{img_idx}.png"
+                    img.save(image_file_path, format="PNG")
+                    self.logger.info("Image saved: %s", image_file_path)
+                    image_list.append(PatentImageModel(image_path=str(image_file_path), page=img_idx))
+
                 else:
                     self.logger.critical("Image download fail: %s", link)
             except Exception as e:
                 msg = f"Image error: {e}"
                 self.logger.exception(msg)
 
-        return image_path_list
+        patent_image_info = PatentImageInfoModel(patent_serial=self.pdf_file_name, image_list=image_list)
+        self.logger.info(patent_image_info)
+        return patent_image_info
 
     def destroy_scraper(self) -> None:
         """Stop the driver."""
@@ -356,4 +360,4 @@ if __name__ == "__main__":
             Scraper.get_patent_image(url)
     #         database.insert_patent(patent_data)
 
-    Scraper.stop_driver()
+    Scraper.destroy_scraper()

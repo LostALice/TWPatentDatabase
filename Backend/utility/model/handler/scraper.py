@@ -23,3 +23,13 @@ class PatentModel(BaseModel):
 
 class PatentInfoModel(PatentModel):
     Patent_id: int
+
+
+class PatentImageModel(BaseModel):
+    image_path: str
+    page: int
+
+
+class PatentImageInfoModel(BaseModel):
+    patent_serial: str
+    image_list: list[PatentImageModel]

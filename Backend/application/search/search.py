@@ -15,6 +15,7 @@ from Backend.utility.error.common import EnvironmentVariableNotSetError
 from Backend.utility.handler.database.history import HistoryOperation
 from Backend.utility.handler.database.scraper import ScraperOperation
 from Backend.utility.handler.database.search import SearchEngineOperation
+from Backend.utility.handler.embedding import ImageEmbedding
 from Backend.utility.handler.llm.llm import LLMResponser
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.handler.pdf_extractor import PDFExtractor
@@ -32,6 +33,9 @@ history_database_client = HistoryOperation()
 scraper_database_client = ScraperOperation()
 llm_client = LLMResponser()
 pdf_extractor = PDFExtractor()
+embedding_model = ImageEmbedding()
+
+POPPLER_PATH = getenv("POPPLER_PATH")
 
 
 @router.get("/full-text")
@@ -89,37 +93,9 @@ async def graph_search(patent_id: int) -> list[PatentInfoModel]:
 
 @router.post("/scraper/")
 async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
-    """
-    Search for patents matching the given keyword, download the first result's PDF,
-    run OCR on it page by page, embed each text chunk, and store the embeddings.
-
-    Args:
-        patent_keyword (str):
-            The search term used to find relevant patents (default: "鞋面").
-            Must be a non-empty string representing the patent title or abstract keyword.
-
-    Returns:
-        List[int | None]:
-            A list containing the database IDs of the successfully inserted patents.
-            If no patents were inserted, returns an empty list.
-
-    Raises:
-        EnvironmentVariableNotSetError:
-            If the POPPLER_PATH environment variable is not set, since it's required
-            for PDF text extraction via poppler's tools.
-        ScraperError:
-            If the scraper fails to initialize or fetch patent URLs.
-        PDFExtractionError:
-            If OCR fails on any PDF.
-        DatabaseInsertionError:
-            If inserting patent metadata or embeddings into the database fails.
-
-    """
     Scraper.keyword = patent_keyword
 
-    poppler_path = getenv("POPPLER_PATH")
-
-    if poppler_path is None:
+    if POPPLER_PATH is None:
         msg = "POPPLER_PATH"
         raise EnvironmentVariableNotSetError(msg)
 
@@ -130,8 +106,19 @@ async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
         patent_data = Scraper.get_patent_information(url)
         logger.info(patent_data)
         patent_id = scraper_database_client.insert_patent(patent=patent_data)
+
+        image_path_list = Scraper.get_patent_image(url)
+        logger.info(image_path_list)
+
         if patent_id is None:
             continue
+
+        for image in image_path_list.image_list:
+            image_embedding = embedding_model.process(image_path=image.image_path)
+
+            search_database_client.insert_vector(
+                embedding=image_embedding, patent_id=patent_id, page=image.page, content=image.image_path, is_image=True
+            )
 
         patent_infos.append(
             PDFInfo(patent_id=patent_id, patent_file_path=patent_data.PatentFilePath, patent_title=patent_data.Title)
@@ -140,7 +127,7 @@ async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
     logger.info(patent_infos)
     Scraper.destroy_scraper()
 
-    results = pdf_extractor.process_multiple([info.patent_file_path for info in patent_infos], poppler_path)
+    results = pdf_extractor.process_multiple([info.patent_file_path for info in patent_infos], POPPLER_PATH)
     logger.debug("| Finish OCR |")
 
     regex_pattern = r"---\s*Page\s*(\d+)\s*---\s*([\s\S]*?)(?=(?:---\s*Page\s*\d+\s*---)|$)"

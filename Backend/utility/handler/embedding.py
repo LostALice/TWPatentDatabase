@@ -1,6 +1,5 @@
 # Code by AkinoAlice@TyrantRey
 
-import numpy as np
 from log_handler import Logger
 from PIL import Image
 from transformers import CLIPModel, CLIPProcessor
@@ -12,7 +11,7 @@ class ImageEmbedding:
         self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
         self.model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 
-    def process(self, image_path: str) -> np.ndarray:
+    def process(self, image_path: str) -> list[float]:
         """
         Process the image and return its embedding using CLIP model.
         """
@@ -21,7 +20,7 @@ class ImageEmbedding:
         inputs = self.processor(images=_image, return_tensors="pt")
         feature = self.model.get_image_features(**inputs)
 
-        return feature.detach().cpu().numpy()[0]
+        return feature.detach().cpu().numpy()[0].tolist()
 
 
 # class TextEmbedding:
@@ -43,7 +42,6 @@ if __name__ == "__main__":
     image_embedding_result = image_embedding.process("./test/image/test.png")
     # (768, )
     print(image_embedding_result)  # noqa: T201
-    print(image_embedding_result.shape)  # noqa: T201
 
     # text_embedding = TextEmbedding()
     # text_embedding_result = text_embedding.process("Your sentence to embed.")
