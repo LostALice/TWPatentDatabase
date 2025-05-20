@@ -1,9 +1,14 @@
 # Code by AkinoAlice@Tyrant_Rex
 
+import hashlib
 import re
 from collections import defaultdict
+from io import BytesIO
+from pathlib import Path
 from urllib.request import urlopen
 
+import requests  # type: ignore[import-untyped]
+from PIL import Image
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
@@ -11,27 +16,30 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 
-from Backend.utility.handler.log_handler import Logger
-from Backend.utility.model.handler.scraper import PatentModel
+# from Backend.utility.error.scraper import HTTPUnexpectedSchemesError
+# from Backend.utility.handler.log_handler import Logger
+# from Backend.utility.model.handler.scraper import PatentModel
+from utility.error.scraper import HTTPUnexpectedSchemesError
+from utility.handler.log_handler import Logger
+from utility.model.handler.scraper import PatentModel
 
 
-class Scraper:
+class PatentScraper:
     """Scraper class for scraping Taiwan Patent Office's website."""
 
-    def __init__(self) -> None:
+    def __init__(self, time_wait: int = 3) -> None:
         """
         Initialize the Scraper with the given page load strategy.
 
         Args:
-            page_load_strategy (str, optional): _description_. Defaults to "eager".
+            time_wait (int): page time wait in second. Defaults to 3.
 
         Returns:
             None
 
         """
         self.logger = Logger().get_logger()
-
-    def create_scraper(self) -> None:
+        self.time_wait = time_wait
         self.options = webdriver.ChromeOptions()
         self.options.binary_location = "./Driver/chromedriver-win64/chromedriver.exe"
         self.driver = webdriver.Chrome()
@@ -121,13 +129,12 @@ class Scraper:
 
         return target_url
 
-    def get_patent_information(self, page_url: str, time_wait: int = 3) -> PatentModel:
+    def get_patent_information(self, page_url: str) -> PatentModel:
         """
         Get patent info form page element.
 
         Args:
             page_url  (str): patent page url
-            time_wait (int): time wait for next page
 
         Returns:
             PatentModel: the information of patent info
@@ -224,15 +231,20 @@ class Scraper:
         # download pdf
         if not pdf_file_name_group:
             self.logger.error("Failed to get PDF file name from URL.")
-            pdf_file_name = "".join([c for c in pdf_url if re.match(r"\w", c)])
+            self.pdf_file_name = "".join([c for c in pdf_url if re.match(r"\w", c)])
         else:
-            pdf_file_name = pdf_file_name_group.group(1)
+            self.pdf_file_name = pdf_file_name_group.group(1)
 
-        patent_dict["PDFFilePath"] = f"./patent/{pdf_file_name}.pdf"
+        patent_dict["PDFFilePath"] = f"./patent/{self.pdf_file_name}.pdf"
+        pdf_save_path = Path(patent_dict["PDFFilePath"])
+
+        if not pdf_url.startswith(("http", "https")):
+            raise HTTPUnexpectedSchemesError(pdf_url)
 
         pdf_file = urlopen(pdf_url)  # noqa: S310
+
         if "application/pdf" in pdf_file.info().get_content_type():
-            with open(patent_dict["PDFFilePath"], "wb") as f:  # noqa: PTH123
+            with Path.open(pdf_save_path, mode="wb") as f:
                 f.write(pdf_file.read())
             WebDriverWait(self.driver, 5)
         else:
@@ -260,17 +272,74 @@ class Scraper:
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
 
-        self.driver.implicitly_wait(time_wait)
+        self.driver.implicitly_wait(self.time_wait)
         self.logger.info(patent_info)
         return patent_info
+
+    def get_patent_image(self, page_url: str) -> list[str]:
+        self.driver.get(page_url)
+
+        WebDriverWait(self.driver, 10).until(
+            ec.presence_of_element_located(
+                (
+                    By.XPATH,
+                    "/html/body/form/div[1]/div/table/tbody/tr[3]/td/table/tbody/tr[2]/td/table/tbody/tr/td[1]/div[2]/div[2]/table/tbody",
+                ),
+            ),
+        )
+
+        a_tags = self.driver.find_elements(By.TAG_NAME, "a")
+        patent_image_links: list[str] = []
+        for a_tag in a_tags:
+            a_tag_href = a_tag.get_attribute("href")
+            if not a_tag_href:
+                continue
+
+            patent_image_links.extend(
+                a_tag_href for ext in [".jpg", ".jpeg", ".png", ".gif", ".bmp"] if a_tag_href.endswith(ext)
+            )
+
+        self.logger.info(patent_image_links)
+        patent_image_dir = Path(f"./patent_image/{self.pdf_file_name}")
+        if not patent_image_dir.exists():
+            patent_image_dir.mkdir(parents=True, exist_ok=True)
+
+        downloaded_hashes = set()
+        image_path_list: list[str] = []
+        for img_idx, link in enumerate(patent_image_links, 1):
+            try:
+                response = requests.get(link, timeout=self.time_wait)
+                if response.ok:
+                    img_bytes = response.content
+                    img_hash = hashlib.sha256(img_bytes).hexdigest()
+
+                    if img_hash in downloaded_hashes:
+                        self.logger.warning("Image duplicate: %s", link)
+                        continue
+
+                    downloaded_hashes.add(img_hash)
+
+                    img = Image.open(BytesIO(img_bytes)).convert("RGB")
+                    filename = patent_image_dir / f"{img_idx}.png"
+                    img.save(filename, format="PNG")
+                    self.logger.info("Image saved: %s", filename)
+                    image_path_list.append(str(filename))
+                else:
+                    self.logger.critical("Image download fail: %s", link)
+            except Exception as e:
+                msg = f"Image error: {e}"
+                self.logger.exception(msg)
+
+        return image_path_list
 
     def destroy_scraper(self) -> None:
         """Stop the driver."""
         self.driver.quit()
 
 
+Scraper = PatentScraper()
+
 if __name__ == "__main__":
-    scraper = Scraper()
     # database_config = DatabaseConfig(
     #     host="localhost",
     #     port=5432,
@@ -279,11 +348,12 @@ if __name__ == "__main__":
     #     database="patent_database",
     # )
     # database = Database(config=database_config, debug=True)
-    total_patent, total_page = scraper.search("鞋面")
+    total_patent, total_page = Scraper.search("鞋面")
     # for page_number in range(1, total_page):
-    for page_number in range(1, 5):
-        for url in scraper.get_patent_url(page=page_number):
-            patent_data = scraper.get_patent_information(url)
+    for page_number in range(1, 2):
+        for url in Scraper.get_patent_url(page=page_number):
+            patent_data = Scraper.get_patent_information(url)
+            Scraper.get_patent_image(url)
     #         database.insert_patent(patent_data)
 
-    # scraper.stop_driver()
+    Scraper.stop_driver()

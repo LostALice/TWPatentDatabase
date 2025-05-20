@@ -115,9 +115,7 @@ async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
             If inserting patent metadata or embeddings into the database fails.
 
     """
-    scraper = Scraper()
-    scraper.create_scraper()
-    scraper.keyword = patent_keyword
+    Scraper.keyword = patent_keyword
 
     poppler_path = getenv("POPPLER_PATH")
 
@@ -125,11 +123,11 @@ async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
         msg = "POPPLER_PATH"
         raise EnvironmentVariableNotSetError(msg)
 
-    url_list = scraper.get_patent_url(page=1)
+    url_list = Scraper.get_patent_url(page=1)
 
     patent_infos: list[PDFInfo] = []
     for url in url_list:
-        patent_data = scraper.get_patent_information(url)
+        patent_data = Scraper.get_patent_information(url)
         logger.info(patent_data)
         patent_id = scraper_database_client.insert_patent(patent=patent_data)
         if patent_id is None:
@@ -140,7 +138,7 @@ async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
         )
 
     logger.info(patent_infos)
-    scraper.destroy_scraper()
+    Scraper.destroy_scraper()
 
     results = pdf_extractor.process_multiple([info.patent_file_path for info in patent_infos], poppler_path)
     logger.debug("| Finish OCR |")

@@ -3,6 +3,7 @@
 **/__pycache__/
 
 **/patent/**
+**/patent_image/**
 **/logs/**
 
 *.log
