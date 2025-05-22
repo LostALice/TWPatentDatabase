@@ -1,5 +1,89 @@
 # 台灣經濟部智慧財產局專利檢索系統爬蟲
 
+```mermaid
+
+flowchart TD
+    %% Frontend Cluster
+    subgraph Frontend
+      UI["Frontend UI(Next.js application)Frontend/"]
+      Fetcher["Next.js Data Fetcher(Frontend/pages/api/fetcher.ts)"]
+      LoginAPI["Login API Route(Frontend/pages/api/login/api.ts)"]
+    end
+
+    %% Backend Cluster
+    subgraph Backend
+      Main["Main FastAPI Entrypoint(Backend/main.py)"]
+      Auth["Auth Router(FastAPI /auth)Backend/application/auth/authorization.py"]
+      Search["Search Router(FastAPI /search)Backend/application/search/search.py"]
+      History["History Router(FastAPI /history)Backend/application/history/history.py"]
+      Report["Report Router(FastAPI /report)Backend/application/report/report.py"]
+      Response["Response Router(FastAPI /response)Backend/application/response/response.py"]
+      Dev["Dev Router(FastAPI /dev)Backend/application/dev/dev.py"]
+    end
+
+    %% Utility Cluster
+    subgraph Utility
+      DBHandler["Database Session & Operations Handler(Backend/utility/handler/database/database.py)"]
+      Scraper["Scraper Handler(Backend/utility/handler/scraper.py)"]
+      PDFExtractor["PDF Text Extraction Handler(Backend/utility/handler/pdf_extractor.py)"]
+      Embedding["Embedding Computation Handler(Backend/utility/handler/embedding.py)"]
+      LLMHandler["LLM (OpenAI) Handler(Backend/utility/handler/llm/llm.py)"]
+      ModelsApp["Application-layer Models(Backend/utility/model/application/)Database Models"]
+      ModelsHandler["Handler-layer Models(Backend/utility/model/handler/)Validation Schemas"]
+      Chromedriver["Chromedriver Binary(Backend/Driver/chromedriver-win64/chromedriver.exe)"]
+    end
+
+    %% Orchestration
+    Compose["Docker Compose(docker-compose.yaml)"]
+
+    %% Frontend interactions
+    UI -->|uses| Fetcher
+    UI -->|POST /login| LoginAPI
+    Fetcher -->|calls| Main
+
+    %% Main routing
+    Main --> Auth
+    Main --> Search
+    Main --> History
+    Main --> Report
+    Main --> Response
+    Main --> Dev
+
+    %% Routers to utility
+    Auth --> DBHandler
+    Search --> DBHandler
+    History --> DBHandler
+    Report --> DBHandler
+
+    Response --> Embedding
+    Response --> LLMHandler
+
+    %% Scraping workflow
+    Scraper --> Chromedriver
+    Scraper --> PDFExtractor
+    PDFExtractor --> Embedding
+
+    %% Embedding to LLM and DB
+    Embedding --> LLMHandler
+    Embedding --> DBHandler
+
+    %% Database models
+    DBHandler --> ModelsApp
+    DBHandler --> ModelsHandler
+
+    %% Orchestration edges
+    Compose --> Frontend
+    Compose --> Backend
+    Compose --> Utility
+
+    style Frontend fill:#f9f,stroke:#333,stroke-width:2px
+    style Backend fill:#bbf,stroke:#333,stroke-width:2px
+    style Utility fill:#bfb,stroke:#333,stroke-width:2px
+    style Compose fill:#ffb,stroke:#333,stroke-width:2px
+
+
+```
+
 # Update Log
 
 ## V0.9 update 19/5/2025
