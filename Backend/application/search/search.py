@@ -6,11 +6,10 @@ import re
 from datetime import datetime, timezone
 from os import getenv
 from pathlib import Path
-from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from Backend.application.dependency.dependency import require_user
+from Backend.application.dependency.dependency import UserPayload, require_user
 from Backend.utility.error.common import EnvironmentVariableNotSetError
 from Backend.utility.handler.database.history import HistoryOperation
 from Backend.utility.handler.database.scraper import ScraperOperation
@@ -20,7 +19,6 @@ from Backend.utility.handler.llm.llm import LLMResponser
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.handler.pdf_extractor import PDFExtractor
 from Backend.utility.handler.scraper import Scraper
-from Backend.utility.model.application.dependency.dependency import AccessToken
 from Backend.utility.model.application.search import PDFChunkEmbedding, PDFInfo, SearchResult
 from Backend.utility.model.handler.scraper import PatentInfoModel
 
@@ -38,10 +36,8 @@ embedding_model = ImageEmbedding()
 POPPLER_PATH = getenv("POPPLER_PATH")
 
 
-@router.get("/full-text")
-async def full_text_search(
-    search_keywords: str, access_token: Annotated[AccessToken, Depends(require_user)]
-) -> SearchResult:
+@router.get("/full-text/")
+async def full_text_search(search_keywords: str, access_token: UserPayload) -> SearchResult:
     """
     Search patents by keyword, record the search history, and return the results.
 
@@ -74,7 +70,7 @@ async def full_text_search(
     )
 
 
-@router.get("/graph")
+@router.get("/graph/")
 async def graph_search(patent_id: int) -> list[PatentInfoModel]:
     """
     Find and return the top-3 most similar patents by embedding cosine distance.

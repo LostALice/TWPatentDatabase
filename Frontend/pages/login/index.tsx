@@ -61,7 +61,7 @@ export default function LoginPage() {
                 placeholder="輸入用戶名"
                 type="text"
                 value={username}
-                onChange={(e: Input.event) => setUsername(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
               />
             </div>
             <div className="text-left space-y-3">
@@ -71,7 +71,7 @@ export default function LoginPage() {
                 placeholder="輸入密碼"
                 type="password"
                 value={password}
-                onChange={(e: Input.event) => setPassword(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               />
             </div>
             <Button className="w-full transition shadow-md" type="submit">

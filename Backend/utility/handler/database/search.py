@@ -19,7 +19,9 @@ class SearchEngineOperation:
 
     def full_text_search(self, search_keywords: str) -> list[PatentInfoModel]:
         operation = select(PatentScheme).where(
-            func.to_tsvector("english", PatentScheme.title).bool_op("@@")(func.to_tsquery("english", search_keywords))
+            func.to_tsvector("simple", PatentScheme.title).bool_op("@@")(
+                func.websearch_to_tsquery("simple", search_keywords)
+            )
         )
 
         result = self.database.run_query(operation)
