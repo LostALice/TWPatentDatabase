@@ -1,7 +1,5 @@
-import DefaultLayout from "@/layouts/default";
 
 import { Image, Button, Link } from "@heroui/react"
-
 import {
   Table,
   TableHeader,
@@ -11,7 +9,8 @@ import {
   TableCell
 } from "@heroui/table";
 
-import { ISearchResults } from "@/types/results/results"
+import DefaultLayout from "@/layouts/default";
+import { ISearchResults } from "@/types/results"
 
 const searchResults_: ISearchResults[] = [
   {
@@ -43,12 +42,12 @@ export default function SearchResultPage() {
       <div className="p-8">
         <div className="flex justify-between items-center mb-6">
           <Image
-            src="https://www.pouchen.com/images/logo.png"
             alt="Pou Chen Group"
+            src="https://www.pouchen.com/images/logo.png"
           />
           <Button 
-          className="px-4 py-2"
           as={Link}
+          className="px-4 py-2"
           href="/history"
           >
             搜尋歷史

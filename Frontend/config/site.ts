@@ -1,8 +1,8 @@
 export type SiteConfig = typeof siteConfig;
 
 export const siteConfig = {
-  name: "Next.js + HeroUI",
-  description: "Make beautiful websites regardless of your design experience.",
+  name: "寶成專利智庫",
+  description: "寶成專利智庫",
   navItems: [
     {
       label: "搜尋",
@@ -20,4 +20,5 @@ export const siteConfig = {
     discord: "https://discord.gg/9b6yyZKmH4",
     sponsor: "https://patreon.com/jrgarciadev",
   },
+  baseURL: "http://localhost:8000/api/v1",
 };

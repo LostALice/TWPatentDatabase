@@ -29,8 +29,8 @@ class Role(BaseModel):
 
 
 class UserLoginCredential(BaseModel):
-    user_name: str
-    hashed_password: str
+    username: str
+    password: str
 
 
 class LoginCertificate(User):

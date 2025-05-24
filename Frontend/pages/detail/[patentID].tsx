@@ -1,21 +1,21 @@
 import { Image } from "@heroui/image";
 import { Link } from "@heroui/link";
 import { Button } from "@heroui/button";
-
-import DefaultLayout from "@/layouts/default";
-
 import { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-import { IPatentInformation } from "@/types/detail/detail"
+import DefaultLayout from "@/layouts/default";
+import { IPatentInformation } from "@/types/detail"
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { resolvedUrl } = context
   const regex = /^\/detail\/\d+$/
+
   if (!regex.test(resolvedUrl)) {
     return { notFound: true }
   }
+
   return {
     props: {},
   }
@@ -98,11 +98,11 @@ export default function PatentDetail() {
         <div className="border p-4">
           <h2>相關專利節點圖：</h2>
           <Image
-            src="/patent-network.png"
             alt="專利節點圖"
-            width={200}
-            height={200}
             className="mt-2"
+            height={200}
+            src="/patent-network.png"
+            width={200}
           />
           <p className="text-xs text-gray-500">(最多20筆)</p>
         </div>

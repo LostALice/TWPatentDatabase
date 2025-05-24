@@ -93,6 +93,7 @@ async def graph_search(patent_id: int) -> list[PatentInfoModel]:
 
 @router.post("/scraper/")
 async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
+    Scraper.create_scraper()
     Scraper.keyword = patent_keyword
 
     if POPPLER_PATH is None:

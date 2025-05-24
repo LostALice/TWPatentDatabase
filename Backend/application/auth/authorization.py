@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from passlib.context import CryptContext  # type: ignore[import-untyped]
 
 from Backend.application.dependency.dependency import (
+    UserPayload,
     generate_jwt_token,
     generate_refresh_token,
     get_environment_variable,
@@ -62,14 +63,14 @@ async def login(login_cred: UserLoginCredential) -> LoginCertificate:
             - 401 Unauthorized if the username does not exist or the password is incorrect.
 
     """
-    user = database_client.fetch_user_by_name(login_cred.user_name)
+    user = database_client.fetch_user_by_name(login_cred.username)
     if user is None:
         raise HTTPException(401, "Invalid Username or password")
 
     stored_password = database_client.fetch_user_hashed_password(user_id=user.user_id)
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    is_password_match = pwd_context.verify(login_cred.hashed_password, stored_password)
+    is_password_match = pwd_context.verify(login_cred.password, stored_password)
     logger.info(is_password_match)
 
     if not is_password_match:
@@ -358,3 +359,9 @@ async def refresh_access_token(refresh_token: str) -> str:
     database_client.update_refresh_token(user_id=user_id, refresh_token=new_refresh_token)
 
     return new_refresh_token
+
+
+@router.post("/verify/")
+async def verify_login(payload: UserPayload) -> bool:
+    logger.info("Verify: %s", payload)
+    return True

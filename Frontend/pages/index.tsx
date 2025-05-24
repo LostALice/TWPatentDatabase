@@ -1,9 +1,27 @@
-import { title, subtitle } from "@/components/primitives";
-import DefaultLayout from "@/layouts/default";
-
 import { Button, Link } from "@heroui/react";
+import { getCookie } from "cookies-next";
+import DefaultLayout from "@/layouts/default";
+import { useEffect } from "react";
+import { verifyLogin } from "@/api/index";
+import { useState } from "react";
 
 export default function IndexPage() {
+  const access_token = getCookie("access_token");
+  const refresh_token = getCookie("refresh_token");
+  const [defaultLink, setDefaultLink] = useState<string>("/login");
+
+  useEffect(() => {
+    if (access_token && refresh_token) {
+      const verify = async () => {
+        const isLoggedIn = await verifyLogin()
+        if (isLoggedIn) {
+          setDefaultLink("/search")
+        }
+      }
+      verify()
+    }
+
+  })
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
@@ -13,7 +31,7 @@ export default function IndexPage() {
           <Button
             as={Link}
             className="px-8 py-3 rounded-md"
-            href="/login"
+            href={defaultLink}
           >
             立即使用
           </Button>

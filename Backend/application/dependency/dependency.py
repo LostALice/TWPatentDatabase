@@ -5,7 +5,7 @@ import datetime
 import json
 import re
 from os import getenv
-from typing import Any
+from typing import Annotated, Any
 
 import jwt
 from fastapi import Cookie, Depends, HTTPException
@@ -462,3 +462,8 @@ async def require_admin(
 async def require_user(payload: AccessToken = Depends(verify_jwt_token)) -> AccessToken:
     """Require user role to access the endpoint"""
     return await require_role(["user", "root", "admin"], payload)
+
+
+UserPayload = Annotated[AccessToken, Depends(require_user)]
+AdminPayload = Annotated[AccessToken, Depends(require_admin)]
+RootPayload = Annotated[AccessToken, Depends(require_root)]

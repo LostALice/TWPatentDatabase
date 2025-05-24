@@ -41,6 +41,8 @@ class PatentScraper:
         """
         self.logger = Logger().get_logger()
         self.time_wait = time_wait
+
+    def create_scraper(self) -> None:
         self.options = webdriver.ChromeOptions()
         self.options.binary_location = "./Driver/chromedriver-win64/chromedriver.exe"
         self.driver = webdriver.Chrome()

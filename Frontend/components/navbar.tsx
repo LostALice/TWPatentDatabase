@@ -55,9 +55,7 @@ export const Navbar = () => {
       </NavbarContent>
 
       <NavbarMenu>
-        <div className="mx-4 mt-2 flex flex-col gap-2">
-          
-        </div>
+        <div className="mx-4 mt-2 flex flex-col gap-2" />
       </NavbarMenu>
     </HeroUINavbar>
   );

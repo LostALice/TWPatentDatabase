@@ -1,23 +1,44 @@
 import { useState } from "react";
 import { Button, addToast, Input, Image } from "@heroui/react";
+import { userLogin } from "@/api/login";
+import { setCookie } from "cookies-next";
 
 import DefaultLayout from "@/layouts/default";
+import { useRouter } from "next/router";
 
 export default function LoginPage() {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const router = useRouter()
 
-  const handleLogin = (event: React.FormEvent) => {
+  const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     console.log("Login attempt:", { username, password });
 
-    if (username && password) {
+    if (!username || !password) {
       addToast({
-        title: "Toast Title",
-        description: "Toast Description",
+        title: "請輸入用戶名和密碼！",
+        description: "請輸入用戶名和密碼！",
+        color: "warning"
       });
+    }
+
+    const loginToken = await userLogin(username, password);
+    if (loginToken != null) {
+      setCookie("refresh_token", loginToken.refresh_token)
+      setCookie("access_token", loginToken.access_token)
+      addToast({
+        title: "登入成功",
+        description: "登入成功",
+        color: "success"
+      });
+      router.push("/search")
     } else {
-      alert("請輸入用戶名和密碼！");
+      addToast({
+        title: "登入失敗",
+        description: "登入失敗",
+        color: "warning"
+      });
     }
   };
 
@@ -40,7 +61,7 @@ export default function LoginPage() {
                 placeholder="輸入用戶名"
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e: Input.event) => setUsername(e.target.value)}
               />
             </div>
             <div className="text-left space-y-3">
@@ -50,7 +71,7 @@ export default function LoginPage() {
                 placeholder="輸入密碼"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e: Input.event) => setPassword(e.target.value)}
               />
             </div>
             <Button className="w-full transition shadow-md" type="submit">

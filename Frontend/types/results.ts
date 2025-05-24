@@ -6,5 +6,5 @@ export interface ISearchResults {
   applicant: string;
   risk: TRisk;
   keyword?: string[];
-  report?: string;【
+  report?: string;
 }

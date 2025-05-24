@@ -1,7 +1,4 @@
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import DefaultLayout from "@/layouts/default";
-
+import { useState, useEffect, use } from "react";
 import {
   Button,
   Image,
@@ -12,17 +9,15 @@ import {
   CardHeader,
   CardFooter,
   Divider,
-} from "@heroui/react"
+} from "@heroui/react";
 
-import { PouChenLogoIcon } from "@/components/icon/logo"
+import DefaultLayout from "@/layouts/default";
+
 export default function SearchPage() {
-  const router = useRouter();
   const [query, setQuery] = useState("");
 
   const handleSearch = () => {
-    if (query.trim() !== "") {
-      // router.push(`/results?query=${encodeURIComponent(query)}`);
-    }
+    console.log(query);
   };
 
   return (
@@ -32,9 +27,8 @@ export default function SearchPage() {
           <CardHeader className="flex gap-3 justify-end items-end">
             <Button
               as={Link}
-              showAnchorIcon
               className="px-4 py-2 rounded-md"
-              href="/results"
+              href="/history"
             >
               搜尋歷史
             </Button>
@@ -43,14 +37,14 @@ export default function SearchPage() {
           <CardBody>
             <div className="p-1 items-center flex space-x-2">
               <Input
-                type="text"
                 className="w-full p-3 rounded-lg focus:ring-2"
                 placeholder="欲搜尋專利之關鍵字或段落"
+                type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e: Input.event) => setQuery(e.target.value)}
               />
               <Button
-                className="px-6 py-3 rounded-lg"
+                className="px-4 py-2 rounded-md"
                 onPress={handleSearch}
               >
                 搜尋
@@ -60,8 +54,8 @@ export default function SearchPage() {
           <Divider />
           <CardFooter>
             <Image
-              src="https://www.pouchen.com/images/logo.png"
               alt="Pou Chen Group"
+              src="https://www.pouchen.com/images/logo.png"
             />
           </CardFooter>
         </Card>
