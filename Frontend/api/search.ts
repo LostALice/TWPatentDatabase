@@ -1,13 +1,13 @@
 // Code by AkinoAlice@TyrantRey
 import { fetcher } from "./fetcher";
-import { PatentInfoModel } from "@/types/search"
+import { IPatentInfoModel } from "@/types/search"
 
-export async function fullTextSearch(searchParse: string): Promise<PatentInfoModel[]> {
+export async function fullTextSearch(searchParse: string): Promise<IPatentInfoModel[]> {
     const data = await fetcher("/search/full-text/?search_keywords=" + encodeURIComponent(searchParse), {
         method: "GET"
     })
 
-    const patents: PatentInfoModel[] = []
+    const patents: IPatentInfoModel[] = []
     for (const patent of data.patents) {
         patents.push(
             {

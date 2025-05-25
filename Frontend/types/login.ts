@@ -1,10 +1,10 @@
 // Code by AkinoAlice@TyrantRey
 
-export interface LoginCertificate {
+export interface ILoginCertificate {
   access_token: string;
   refresh_token: string;
 }
 
-export interface ApiError {
+export interface IApiError {
   detail: string;
 }

@@ -16,13 +16,13 @@ import {
 import { fullTextSearch } from "@/api/search"
 import DefaultLayout from "@/layouts/default";
 import { PatentTable } from "@/components/patentTable"
-import { PatentInfoModel } from "@/types/search"
+import { IPatentInfoModel } from "@/types/search"
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [isButtonEnable, setIsButtonEnable] = useState<boolean>(false);
   const [searchMode, setSearchMode] = useState<boolean>(true)
-  const [patentList, setPatentList] = useState<PatentInfoModel[]>([])
+  const [patentList, setPatentList] = useState<IPatentInfoModel[]>([])
 
   const handleSearch = async () => {
     if (!query) {

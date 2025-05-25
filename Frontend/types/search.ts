@@ -1,6 +1,6 @@
 // Code by AkinoAlice@TyrantRey
 
-export interface PatentModel {
+export interface IPatentModel {
     Title: string
     ApplicationDate: number
     PublicationDate: number
@@ -18,23 +18,23 @@ export interface PatentModel {
     PatentFilePath: string
 }
 
-export interface PatentInfoModel extends PatentModel {
+export interface IPatentInfoModel extends IPatentModel {
     Patent_id: number
 }
 
-export interface PatentImageModel {
+export interface IPatentImageModel {
     image_path: string
     page: number
 }
 
 
-export interface PatentImageInfoModel {
+export interface IPatentImageInfoModel {
     patent_serial: string
-    image_list: [PatentImageModel]
+    image_list: [IPatentImageModel]
 }
 
 
-export interface SearchResult {
-    patents: PatentInfoModel
+export interface ISearchResult {
+    patents: IPatentInfoModel
     search_time: string
 }
