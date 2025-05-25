@@ -23,7 +23,7 @@ llm_client = LLMResponser()
 result_database_client = ResultOperation()
 
 
-@router.get("/search")
+@router.get("/search/")
 async def llm_response(query: str, access_token: Annotated[AccessToken, Depends(require_user)]) -> str:
     response, token_count = llm_client.search_response(query=query)
     logger.info(response)
@@ -36,14 +36,16 @@ async def llm_response(query: str, access_token: Annotated[AccessToken, Depends(
     return response
 
 
-@router.get("/summary")
+@router.get("/summary/")
 async def llm_summary(patent_id: int, access_token: Annotated[AccessToken, Depends(require_user)]) -> str:
     patent_info = result_database_client.search_patent_by_id(patent_id=patent_id)
 
     if not patent_info:
         raise HTTPException(404, f"Patent id not found: {patent_id}")
 
-    patent_text_path = patent_info.PatentFilePath.replace("patent", "pdf_output").replace("pdf", "txt")
+    patent_text_path = (
+        patent_info.PatentFilePath.replace("pdf", "txt").replace("patent", "pdf_output")
+    )
 
     with Path.open(Path(patent_text_path), "r", encoding="utf-8") as f:
         patent_text = f.read()

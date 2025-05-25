@@ -207,10 +207,10 @@ class SearchEngineOperation:
                 .limit(3)
             )
 
-            patent_id_list = set(self.database.run_query_vector(search))
-            self.logger.info(patent_id_list)
-            patent_list.add(patent_id)
+            patent_id_list = {int(i) for i in self.database.run_query_vector(search)}
+            patent_list = patent_list | patent_id_list
 
+        self.logger.info(patent_list)
         return patent_list
 
     def search_patent_by_id(self, patent_ids: set[int]) -> list[PatentInfoModel]:

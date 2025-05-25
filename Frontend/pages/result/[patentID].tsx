@@ -5,15 +5,16 @@ import {
   TableBody,
   TableColumn,
   TableRow,
-  TableCell
+  TableCell,
+  Spinner
 } from "@heroui/react";
 import { Button } from "@heroui/button";
 import { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { useEffect, useState } from "react";
-
+import ReactMarkdown from 'react-markdown';
 import DefaultLayout from "@/layouts/default";
-import { getPatentInfo } from "@/api/patentId";
+import { getPatentInfo, generateInfringementPatent, generatePatentGraph } from "@/api/patentId";
 import { IPatentInfoModel } from "@/types/search";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -29,10 +30,15 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 }
 
+
 export default function PatentDetail() {
   const router = useRouter()
   const patentID = Number(router.query.patentID) as number
   const [patentInfo, setPatentInfo] = useState<IPatentInfoModel>()
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false)
+  const [isGeneratingGraph, setIsGeneratingGraph] = useState(false)
+  const [LLMContent, setLLMContent] = useState<string>("")
+  const [GraphContent, setGraphContent] = useState<string>("")
 
   if (!patentID) {
     return (
@@ -49,8 +55,26 @@ export default function PatentDetail() {
       setPatentInfo(result)
     }
 
+
     requestPatentInfo()
   }, [])
+
+  const requestGenerateLLMContent = async () => {
+    setIsGeneratingContent(true)
+    const result = await generateInfringementPatent(patentID)
+    console.log(result)
+    setLLMContent(result)
+    setIsGeneratingContent(false)
+  }
+  // requestGenerateLLMContent()
+
+  const requestGenerateGraph = async () => {
+    setIsGeneratingGraph(true)
+    const result = await generatePatentGraph(patentID)
+    console.log(result)
+    setIsGeneratingGraph(false)
+  }
+  // requestGenerateGraph()
 
   if (!patentInfo) {
     return (
@@ -60,7 +84,7 @@ export default function PatentDetail() {
     )
   }
   const patentLabel = [
-    { label: "專利號", item: "Patent_id" },
+    { label: "專利ID", item: "Patent_id" },
     { label: "標題", item: "Title" },
     { label: "申請日", item: "ApplicationDate" },
     { label: "公開日", item: "PublicationDate" },
@@ -84,17 +108,13 @@ export default function PatentDetail() {
         <div className="grid grid-cols-2 gap-4 mt-8 rounded-md mb-3">
           <div className="border p-4 rounded-md">
             <h2>LLM生成之可能侵權內容：</h2>
+              {LLMContent ? <ReactMarkdown>{LLMContent}</ReactMarkdown> : <Button onPress={requestGenerateLLMContent}>LLM生成侵權內容</Button>}
           </div>
 
           <div className="border p-4 rounded-md">
             <h2>相關專利節點圖：</h2>
-            {/* <Image
-            alt="專利節點圖"
-            className="mt-2"
-            height={200}
-            src="/patent-network.png"
-            width={200}
-          /> */}
+            {GraphContent ? <span>asd</span> : <Button onPress={requestGenerateGraph}>生成專利節點圖</Button>}
+
           </div>
         </div>
         <Table aria-label="Example static collection table" isStriped bottomContent={

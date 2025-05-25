@@ -70,7 +70,7 @@ async def full_text_search(search_keywords: str, access_token: UserPayload) -> S
     )
 
 
-@router.get("/patent-list/")
+@router.post("/patent-list/")
 async def search_patent_list(patent_ids: set[int]) -> list[PatentInfoModel]:
     return search_database_client.search_patent_by_id(patent_ids)
 
@@ -88,7 +88,7 @@ async def graph_search(patent_id: int) -> list[PatentInfoModel]:
 
     """
     patent_ids = search_database_client.search_patent_similarity_by_id(patent_id=patent_id)
-
+    logger.info(patent_ids)
     return search_database_client.search_patent_by_id(patent_ids)
 
 
