@@ -17,9 +17,11 @@ class HistoryOperation:
         self.logger = Logger().get_logger()
 
     def fetch_search_history(self, user_id: int) -> list[SearchHistoryRecord]:
-        operation = select(
-            SearchHistoryScheme.user_id, SearchHistoryScheme.patent_id, SearchHistoryScheme.search_time
-        ).where(SearchHistoryScheme.user_id == user_id)
+        operation = (
+            select(SearchHistoryScheme.user_id, SearchHistoryScheme.patent_id, SearchHistoryScheme.search_time)
+            .where(SearchHistoryScheme.user_id == user_id)
+            .order_by(SearchHistoryScheme.search_time.desc())
+        )
 
         result = self.database.run_query(operation)
 
@@ -28,9 +30,9 @@ class HistoryOperation:
             return []
         return [
             SearchHistoryRecord(
-                user_id=r["SearchHistoryScheme"].user_id,
-                patent_id=r["SearchHistoryScheme"].patent_id,
-                search_time=r["SearchHistoryScheme"].search_time,
+                user_id=r["user_id"],
+                patent_id=r["patent_id"],
+                search_time=r["search_time"],
             )
             for r in result
         ]

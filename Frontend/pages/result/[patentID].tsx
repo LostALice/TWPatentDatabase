@@ -99,7 +99,7 @@ export default function PatentDetail() {
         </div>
         <Table aria-label="Example static collection table" isStriped bottomContent={
           <Button
-          className="mt-3"
+            className="mt-3"
             as={Link}
             href="/search"
           >

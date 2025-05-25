@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, or_, select
 
 from Backend.utility.handler.log_handler import Logger
 from Backend.utility.model.application.history import SearchHistoryRecord
@@ -19,8 +19,11 @@ class SearchEngineOperation:
 
     def full_text_search(self, search_keywords: str) -> list[PatentInfoModel]:
         operation = select(PatentScheme).where(
-            func.to_tsvector("simple", PatentScheme.title).bool_op("@@")(
-                func.websearch_to_tsquery("simple", search_keywords)
+            or_(
+                func.to_tsvector("simple", PatentScheme.title).bool_op("@@")(
+                    func.websearch_to_tsquery("simple", search_keywords)
+                ),
+                PatentScheme.title.like("%" + search_keywords + "%"),
             )
         )
 

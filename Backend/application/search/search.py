@@ -70,6 +70,11 @@ async def full_text_search(search_keywords: str, access_token: UserPayload) -> S
     )
 
 
+@router.get("/patent-list/")
+async def search_patent_list(patent_ids: set[int]) -> list[PatentInfoModel]:
+    return search_database_client.search_patent_by_id(patent_ids)
+
+
 @router.get("/graph/")
 async def graph_search(patent_id: int) -> list[PatentInfoModel]:
     """
@@ -88,7 +93,28 @@ async def graph_search(patent_id: int) -> list[PatentInfoModel]:
 
 
 @router.post("/scraper/")
-async def download_patent(patent_keyword: str = "鞋面") -> list[int | None]:
+async def download_patent(patent_keyword: str) -> list[int | None]:
+    """
+    Scrape patent documents matching the given keyword, store them and their embeddings,
+    perform OCR on the downloaded PDFs, and return the list of inserted patent IDs.
+
+    Args:
+        patent_keyword (str): The keyword to search patents for (default is "鞋面").
+
+    Returns:
+        list[int | None]:
+            A list containing the database IDs of the inserted patents.
+            An entry will be  None if insertion failed for that particular patent.
+
+    Raises:
+        EnvironmentVariableNotSetError
+            If the POPPLER_PATH environment variable is not set, which is required
+            for PDF processing.
+
+    """
+    logger.debug(patent_keyword)
+    patent_keyword = patent_keyword.split()[0]
+
     Scraper.create_scraper()
     Scraper.keyword = patent_keyword
 

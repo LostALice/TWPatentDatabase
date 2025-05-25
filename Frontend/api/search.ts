@@ -32,6 +32,22 @@ export async function fullTextSearch(searchParse: string): Promise<IPatentInfoMo
     }
 
     console.log(patents)
-
     return patents
+}
+
+export async function similaritySearch(searchParse: string): Promise<string> {
+    const data = await fetcher("/response/search/?query=" + encodeURIComponent(searchParse), {
+        method: "GET"
+    })
+
+    return data
+}
+
+export async function startScraper(searchParse: string) {
+    console.log(searchParse)
+    const data = await fetcher("/search/scraper/?" + new URLSearchParams({ patent_keyword: searchParse }), {
+        method: "POST",
+    })
+
+    return data
 }

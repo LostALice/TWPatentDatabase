@@ -3,7 +3,6 @@ import { IPatentInfoModel } from "@/types/search"
 
 export async function getPatentInfo(patentId: number): Promise<IPatentInfoModel> {
     const data = await fetcher("/report/info/?patent_id=" + patentId, { method: "GET" })
-    console.log(data)
     return {
         Patent_id: data.Patent_id,
         Title: data.Title,

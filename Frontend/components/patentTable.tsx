@@ -33,7 +33,7 @@ export const PatentTable = ({ patents }: { patents: IPatentInfoModel[] }) => {
             </TableHeader>
             <TableBody items={patents}>
                 {(item) => (
-                    <TableRow key={item.Patent_id} className="">
+                    <TableRow key={item.Patent_id}>
                         <TableCell className="px-6 py-4 whitespace-normal text-sm">
                             {item.Patent_id}
                         </TableCell>
