@@ -22,3 +22,11 @@ export async function getPatentInfo(patentId: number): Promise<IPatentInfoModel>
         PatentFilePath: data.PatentFilePath,
     }
 }
+
+export async function generateInfringementPatent(patentId: number): Promise<string> {
+    return await fetcher("/response/summary/?patent_id=" + patentId, { method: "GET" })
+}
+
+export async function generatePatentGraph(patentId: number): Promise<string> {
+    return await fetcher("/search/graph/?patent_id=" + patentId, { method: "GET" })
+}
