@@ -6,9 +6,15 @@ import {
   TableColumn,
   TableRow,
   TableCell,
-  Spinner
+  Spinner,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  useDisclosure,
 } from "@heroui/react";
-import { Button } from "@heroui/button";
 import { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { useEffect, useState } from "react";
@@ -16,6 +22,7 @@ import ReactMarkdown from 'react-markdown';
 import DefaultLayout from "@/layouts/default";
 import { getPatentInfo, generateInfringementPatent, generatePatentGraph } from "@/api/patentId";
 import { IPatentInfoModel } from "@/types/search";
+import { PatentGraph } from "@/components/nodeGraph"
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { resolvedUrl } = context
@@ -38,7 +45,9 @@ export default function PatentDetail() {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false)
   const [isGeneratingGraph, setIsGeneratingGraph] = useState(false)
   const [LLMContent, setLLMContent] = useState<string>("")
-  const [GraphContent, setGraphContent] = useState<string>("")
+  const [GraphContent, setGraphContent] = useState<IPatentInfoModel[]>()
+
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   if (!patentID) {
     return (
@@ -54,7 +63,6 @@ export default function PatentDetail() {
       console.log(result)
       setPatentInfo(result)
     }
-
 
     requestPatentInfo()
   }, [])
@@ -72,6 +80,7 @@ export default function PatentDetail() {
     setIsGeneratingGraph(true)
     const result = await generatePatentGraph(patentID)
     console.log(result)
+    setGraphContent(result)
     setIsGeneratingGraph(false)
   }
   // requestGenerateGraph()
@@ -79,7 +88,9 @@ export default function PatentDetail() {
   if (!patentInfo) {
     return (
       <DefaultLayout>
-        <div className="text-center text-red-500">找不到該專利資訊</div>
+        <div className="flex justify-center">
+          <Spinner className="justify-center" color="default" label="Loading" />
+        </div> :
       </DefaultLayout>
     )
   }
@@ -103,18 +114,63 @@ export default function PatentDetail() {
 
   return (
     <DefaultLayout>
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="full">
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">專利節點圖</ModalHeader>
+              <ModalBody>
+                <PatentGraph patentData={GraphContent || []} centerPatentId={patentID} />
+              </ModalBody>
+              <ModalFooter>
+                <Button color="primary" onPress={onClose}>
+                  關閉
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
       <div className="mx-auto shadow-md rounded-lg p-8 m-8">
         <h1 className="text-3xl font-bold gap-5 p-1">侵權風險報告</h1>
         <div className="grid grid-cols-2 gap-4 mt-8 rounded-md mb-3">
           <div className="border p-4 rounded-md">
             <h2>LLM生成之可能侵權內容：</h2>
-              {LLMContent ? <ReactMarkdown>{LLMContent}</ReactMarkdown> : <Button onPress={requestGenerateLLMContent}>LLM生成侵權內容</Button>}
+            <div>
+              {
+                LLMContent ?
+                  <ReactMarkdown>{LLMContent}</ReactMarkdown> :
+                  isGeneratingContent ?
+                    <div className="flex justify-center">
+                      <Spinner className="justify-center" color="default" label="Loading" />
+                    </div> :
+                    <div className="flex justify-center">
+                      <Button onPress={requestGenerateLLMContent}>LLM生成侵權內容</Button>
+                    </div>
+              }
+            </div>
           </div>
 
           <div className="border p-4 rounded-md">
-            <h2>相關專利節點圖：</h2>
-            {GraphContent ? <span>asd</span> : <Button onPress={requestGenerateGraph}>生成專利節點圖</Button>}
-
+            <div className="flex flex-row justify-between">
+              <span className="text-center">相關專利節點圖：</span>
+              <Button size="sm" onPress={onOpen} isDisabled={GraphContent ? false : true}>
+                放大
+              </Button>
+            </div>
+            <div>
+              {
+                GraphContent ?
+                  <PatentGraph patentData={GraphContent} centerPatentId={patentID} /> :
+                  isGeneratingGraph ?
+                    <div className="flex justify-center">
+                      <Spinner className="justify-center" color="default" label="Loading" />
+                    </div> :
+                    <div className="flex justify-center">
+                      <Button onPress={requestGenerateGraph}>生成專利節點圖</Button>
+                    </div>
+              }
+            </div>
           </div>
         </div>
         <Table aria-label="Example static collection table" isStriped bottomContent={

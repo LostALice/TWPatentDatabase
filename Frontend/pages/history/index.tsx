@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 export default function SearchResultPage() {
   const [history, setHistory] = useState<ISearchHistoryRecord[]>([])
   const [patentInfoList, setPatentInfoList] = useState<IUserHistoryRecord[]>([])
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
   const columns = [
     { key: "Id", label: "ID" },
@@ -32,6 +32,7 @@ export default function SearchResultPage() {
   ];
 
   useEffect(() => {
+    setIsDataLoading(true)
     const getUserHistory = async () => {
       const userSearchHistory = await userHistory()
 
