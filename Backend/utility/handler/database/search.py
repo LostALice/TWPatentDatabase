@@ -148,7 +148,14 @@ class SearchEngineOperation:
                 },
             )
 
-        return not isinstance(result, bool)
+        # `run_raw_query` returns ``True`` on success and ``False`` on failure
+        # for statements that do not yield rows (like the INSERTs above).  The
+        # previous implementation incorrectly returned ``False`` whenever the
+        # underlying database call returned a boolean, which meant successful
+        # inserts were reported as failures.  We instead return ``True`` only
+        # when the execution succeeded.
+
+        return bool(result)
 
     def search_patent_similarity_by_vector(self, embedding_vector: list[float]) -> list[int]:
         """
@@ -177,7 +184,12 @@ class SearchEngineOperation:
         if isinstance(target_patents, bool) or target_patents == []:
             return []
 
-        return [patent["ContentVectorScheme"].patent_id for patent in target_patents]
+        # ``run_query_vector`` returns the scalar value of the selected column
+        # (the patent id in this case).  The previous implementation attempted
+        # to treat each entry as a row mapping which resulted in a
+        # ``TypeError``.  Simply cast each returned value to ``int``.
+
+        return [int(patent) for patent in target_patents]
 
     def search_patent_similarity_by_id(self, patent_id: int) -> set[int]:
         """
