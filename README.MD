@@ -94,7 +94,7 @@ Feat: Add response history tracking and PDF text extraction
 - Enhanced `/search` and `/scraper/` endpoints to include PDF text extraction and embedding using `PDFExtractor`.
 - Introduced vector embeddings for PDF content in `search.py` with `PDFChunkEmbedding`.
 - Updated database schema to include content and image vector tables and response history table.
-- Removed redundant `feature_extractor.py` and refactored `embdeeing.py` to align with new structure.
+- Removed redundant `feature_extractor.py` and refactored `embedding.py` to align with new structure.
 
 ## V0.8 update 16/5/2025
 
